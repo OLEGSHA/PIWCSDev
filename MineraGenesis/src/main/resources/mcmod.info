@@ -1,0 +1,16 @@
+[
+{
+  "modid": "mineragenesis",
+  "name": "MineraGenesis",
+  "description": "Lightweight generator of huge deposits",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["OLEGSHA"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
