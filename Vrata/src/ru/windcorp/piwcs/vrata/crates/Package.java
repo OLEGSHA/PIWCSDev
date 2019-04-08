@@ -53,6 +53,7 @@ public class Package implements Iterable<Crate> {
 	private final SortedMap<String, SortedSet<Crate>> batches = new TreeMap<>(Comparator.nullsLast(Comparator.naturalOrder()));
 	
 	private final File file;
+	private final File descFile;
 	
 	private int modCount = 0;
 	private VrataUser currentUser = null;
@@ -65,6 +66,7 @@ public class Package implements Iterable<Crate> {
 		this.name = name;
 		
 		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".package");
+		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".desc.txt");
 	}
 	
 	private static String escapeFileUnsafes(String filename) {
@@ -321,6 +323,10 @@ public class Package implements Iterable<Crate> {
 
 	public File getFile() {
 		return file;
+	}
+	
+	public File getDescriptionFile() {
+		return descFile;
 	}
 
 	@Override

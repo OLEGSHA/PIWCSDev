@@ -19,10 +19,14 @@
 package ru.windcorp.piwcs.vrata.crates;
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,7 +65,14 @@ public class Packages {
 	}
 
 	public static void save() throws IOException {
-		
+		for (Package pkg : PACKAGES.values()) {
+			if (pkg.needsSaving()) {
+				pkg.save(new DataOutputStream(new FileOutputStream(pkg.getFile())));
+			}
+			if (pkg.needsDescriptionRewrite()) {
+				pkg.saveDescriptions(new OutputStreamWriter(new FileOutputStream(pkg.getFile()), StandardCharsets.UTF_8));
+			}
+		}
 	}
 
 }
