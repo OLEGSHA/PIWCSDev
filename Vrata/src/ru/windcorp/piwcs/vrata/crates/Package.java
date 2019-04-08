@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
@@ -55,6 +56,9 @@ public class Package implements Iterable<Crate> {
 	
 	private int modCount = 0;
 	private VrataUser currentUser = null;
+	
+	private boolean isModified = true;
+	private boolean isDescriptionOutdated = true;
 	
 	public Package(UUID uuid, String name) {
 		this.uuid = uuid;
@@ -112,6 +116,9 @@ public class Package implements Iterable<Crate> {
 			result.addCrate(Crate.load(input));
 		}
 		
+		result.isModified = false;
+		result.isDescriptionOutdated = false;
+		
 		return result;
 	}
 	
@@ -128,10 +135,14 @@ public class Package implements Iterable<Crate> {
 		
 		output.writeInt(crates.size());
 		for (Crate crate : crates) crate.save(output);
+		
+		this.isModified = false;
 	}
 	
 	public synchronized void saveDescriptions(Writer output) throws IOException {
 		for (Crate crate : this) {
+			output.write(crate.getBatch());
+			output.write(": ");
 			output.write(crate.getUuid().toString());
 			output.write(" {\n");
 			
@@ -144,6 +155,34 @@ public class Package implements Iterable<Crate> {
 			
 			output.write("}\n\n");
 		}
+		
+		this.isDescriptionOutdated = false;
+	}
+
+	public synchronized boolean needsSaving() {
+		if (isModified) {
+			return true;
+		}
+		
+		for (Entry<String, SortedSet<Crate>> batch : batches.entrySet()) {
+			for (Crate crate : batch.getValue()) {
+				if (crate.needsSaving()) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	private synchronized void modify() {
+		modCount++;
+		this.isModified = true;
+		this.isDescriptionOutdated = true;
+	}
+	
+	public synchronized boolean needsDescriptionRewrite() {
+		return isDescriptionOutdated;
 	}
 
 	public UUID getUuid() {
@@ -175,7 +214,7 @@ public class Package implements Iterable<Crate> {
 			getBatchMap().put(crate.getBatch(), batch);
 		}
 		
-		modCount++;
+		modify();
 		batch.add(crate);
 	}
 	
@@ -185,11 +224,8 @@ public class Package implements Iterable<Crate> {
 			throw new RuntimeException("The batch of crate " + crate + " is out of sync: batch " + crate.getBatch() + " not found");
 		}
 		if (batch.remove(crate)) {
-			modCount++;
+			modify();
 		}
-		
-		
-		// TODO: synch all methods and START WORKING ON UI
 	}
 	
 	public Set<String> getOwners() {
@@ -201,11 +237,13 @@ public class Package implements Iterable<Crate> {
 	}
 	
 	public synchronized void addOwner(String player) {
-		getOwners().add(player);
+		if (getOwners().add(player)) modify();
 	}
 	
 	public synchronized boolean removeOwner(String player) {
-		return getOwners().remove(player);
+		boolean modified = getOwners().remove(player);
+		if (modified) modify();
+		return modified;
 	}
 	
 	public boolean isOwner(Player player) {

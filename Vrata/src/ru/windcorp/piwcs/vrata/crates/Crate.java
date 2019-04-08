@@ -49,8 +49,17 @@ public class Crate {
 	private boolean deployed;
 	private boolean moderated;
 	
-	private Crate(UUID uuid, UUID pkg, String batch, Instant creationTime, byte[] nbtData, int slots,
-			String description, boolean deployed, boolean moderated) {
+	private boolean isModified;
+	private boolean hasBeenAdded;
+	
+	private Crate(
+			UUID uuid, UUID pkg,
+			String batch,
+			Instant creationTime,
+			byte[] nbtData, int slots,
+			String description,
+			boolean deployed, boolean moderated,
+			boolean modifiedFlag, boolean hasBeenAdded) {
 		this.uuid = uuid;
 		this.pkg = pkg;
 		this.batch = batch;
@@ -60,6 +69,9 @@ public class Crate {
 		this.description = description;
 		this.deployed = deployed;
 		this.moderated = moderated;
+		
+		this.isModified = modifiedFlag;
+		this.hasBeenAdded = hasBeenAdded;
 	}
 	
 	public static Crate createNew(Package pkg, byte[] nbtData, int slots, String description) {
@@ -76,6 +88,9 @@ public class Crate {
 				description,
 				
 				false,
+				false,
+				
+				true,
 				false
 				
 				);
@@ -103,7 +118,10 @@ public class Crate {
 					readPureUTF8(input),
 					
 					input.readBoolean(),
-					input.readBoolean()
+					input.readBoolean(),
+					
+					false,
+					true
 					
 					);
 		} catch (Exception e) {
@@ -168,6 +186,8 @@ public class Crate {
 		
 		output.writeBoolean(deployed);
 		output.writeBoolean(moderated);
+		
+		isModified = false;
 	}
 	
 	public boolean isDeployed() {
@@ -176,6 +196,7 @@ public class Crate {
 	
 	public void setDeployed(boolean deployed) {
 		this.deployed = deployed;
+		markForSaving();
 	}
 	
 	public boolean isModerated() {
@@ -184,6 +205,7 @@ public class Crate {
 	
 	public void setModerated(boolean moderated) {
 		this.moderated = moderated;
+		markForSaving();
 	}
 	
 	public String getBatch() {
@@ -191,7 +213,11 @@ public class Crate {
 	}
 
 	public void setBatch(String batch) {
+		if (hasBeenAdded) {
+			throw new IllegalStateException("Crate " + this + " is already added to a package yet an attempt has been made to modify its batch");
+		}
 		this.batch = batch;
+		// No need to markForSaving() since we should not have been saved ever so far
 	}
 
 	public UUID getUuid() {
@@ -228,6 +254,14 @@ public class Crate {
 
 	private static String getShortId(UUID own, UUID pkg) {
 		return pkg.toString().substring(0, 6) + "-" + own.toString().substring(0, 6);
+	}
+
+	public boolean needsSaving() {
+		return isModified;
+	}
+	
+	public void markForSaving() {
+		isModified = true;
 	}
 
 }

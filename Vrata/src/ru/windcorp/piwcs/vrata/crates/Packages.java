@@ -23,14 +23,16 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class Packages {
 	
 	private static File saveDir = null;
 	
-	private static final Set<Package> PACKAGES = new HashSet<>();
+	private static final Map<UUID, Package> PACKAGES = new HashMap<>();
 	
 	public static void setSaveDirectory(File saveDir) {
 		Packages.saveDir = saveDir;
@@ -40,20 +42,25 @@ public class Packages {
 		return saveDir;
 	}
 
-	public static Set<Package> getPackages() {
-		return PACKAGES;
+	public static Collection<Package> getPackages() {
+		return PACKAGES.values();
+	}
+	
+	public static Package getPackage(UUID uuid) {
+		return PACKAGES.get(uuid);
 	}
 	
 	public static void load() throws IOException {
 		for (File file : getSaveDirectory().listFiles((FileFilter)
 				file -> file.isFile() && file.getName().endsWith(".package")
 				)) {
-			PACKAGES.add(Package.load(new DataInputStream(new FileInputStream(file))));
+			
+			Package pkg = Package.load(new DataInputStream(new FileInputStream(file)));
+			PACKAGES.put(pkg.getUuid(), pkg);
 		}
 	}
 
 	public static void save() throws IOException {
-		// TODO Auto-generated method stub
 		
 	}
 
