@@ -23,6 +23,7 @@ import java.util.List;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.crates.Crate;
+import ru.windcorp.piwcs.vrata.crates.Package;
 
 public class VrataUser {
 	
@@ -39,6 +40,10 @@ public class VrataUser {
 	
 	public Player getPlayer() {
 		return player;
+	}
+	
+	public void sendMessage(String message) {
+		getPlayer().sendMessage(message);
 	}
 	
 	public VrataUserProfile getProfile() {

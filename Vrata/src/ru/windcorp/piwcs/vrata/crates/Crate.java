@@ -247,9 +247,9 @@ public class Crate {
 	@Override
 	public String toString() {
 		if (getBatch() != null) {
-			return getBatch() + ":" + getShortId(getUuid(), getPackageUuid());
+			return "C-" + getBatch() + "-" + getShortId(getUuid(), getPackageUuid());
 		}
-		return getShortId(getUuid(), getPackageUuid());
+		return "C-X-" + getShortId(getUuid(), getPackageUuid());
 	}
 
 	private static String getShortId(UUID own, UUID pkg) {

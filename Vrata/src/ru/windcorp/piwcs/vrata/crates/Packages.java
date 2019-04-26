@@ -54,6 +54,14 @@ public class Packages {
 		return PACKAGES.get(uuid);
 	}
 	
+	static void registerPackage(Package pkg) {
+		PACKAGES.put(pkg.getUuid(), pkg);
+	}
+	
+	public static boolean removePackage(Package pkg) {
+		return !PACKAGES.remove(pkg.getUuid(), pkg);
+	}
+	
 	public static void load() throws IOException {
 		for (File file : getSaveDirectory().listFiles((FileFilter)
 				file -> file.isFile() && file.getName().endsWith(".package")

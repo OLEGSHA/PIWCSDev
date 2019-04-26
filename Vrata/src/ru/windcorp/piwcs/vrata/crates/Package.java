@@ -67,6 +67,8 @@ public class Package implements Iterable<Crate> {
 		
 		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".package");
 		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".desc.txt");
+		
+		Packages.registerPackage(this);
 	}
 	
 	private static String escapeFileUnsafes(String filename) {
@@ -249,7 +251,11 @@ public class Package implements Iterable<Crate> {
 	}
 	
 	public boolean isOwner(Player player) {
-		return getOwners().contains(player.getName());
+		return isOwner(player.getName());
+	}
+	
+	public boolean isOwner(String name) {
+		return getOwners().contains(name);
 	}
 
 	@Override
@@ -314,11 +320,16 @@ public class Package implements Iterable<Crate> {
 		return currentUser;
 	}
 
-	public synchronized void setCurrentUser(VrataUser currentUser) throws VrataPermissionException {
-		if (currentUser != null && this.currentUser != null) {
+	public synchronized void setCurrentUser(VrataUser user) throws VrataPermissionException {
+		if (user != null && this.currentUser != null) {
 			throw VrataPermissionException.create("package.alreadyInUse", new Object[] {this.currentUser}, this);
 		}
-		this.currentUser = currentUser;
+		
+		this.currentUser = user;
+		
+		if (user != null) {
+			user.setCurrentPackage(this);
+		}
 	}
 
 	public File getFile() {
@@ -331,7 +342,7 @@ public class Package implements Iterable<Crate> {
 
 	@Override
 	public String toString() {
-		return getUuid().toString().substring(0, 6);
+		return "P-" + getUuid().toString().substring(0, 6);
 	}
 
 }

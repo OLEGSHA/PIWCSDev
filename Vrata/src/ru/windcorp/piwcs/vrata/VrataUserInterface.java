@@ -18,10 +18,32 @@
 
 package ru.windcorp.piwcs.vrata;
 
-public class VrataUserInterface {
+import ru.windcorp.piwcs.vrata.crates.*;
+import ru.windcorp.piwcs.vrata.crates.Package;
+import ru.windcorp.piwcs.vrata.users.*;
 
-	public VrataUserInterface() {
-		// TODO Auto-generated constructor stub
+import static ru.windcorp.piwcs.vrata.users.VrataUsers.*;
+import static ru.windcorp.piwcs.vrata.VrataLogger.write;
+
+import java.util.UUID;
+
+public class VrataUserInterface {
+	
+	public static Package createNewPackage(String name) {
+		Package pkg = new Package(UUID.randomUUID(), name);
+		write("Created new package %s", pkg);
+		return pkg;
+	}
+	
+	public static void addPackageOwner(Package pkg, String owner) {
+		pkg.addOwner(owner);
+		write("Added owner %s to package %s", owner, pkg);
+	}
+	
+	public static void selectPackage(Package pkg, VrataUser user) {
+		user.setCurrentPackage(pkg);
+		// TODO: log and check everything
+		//user.
 	}
 
 }

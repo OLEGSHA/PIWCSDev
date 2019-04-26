@@ -1,0 +1,11 @@
+name: PIWCSVrata
+version: 0.0.1
+description: Allows intersave item transfer
+author: OLEGSHA
+
+main: ru.windcorp.piwcs.vrata.VrataPlugin
+
+commands:
+   vrata:
+     description: Root command for PIWCS Vrata
+     usage: vrata [args...].

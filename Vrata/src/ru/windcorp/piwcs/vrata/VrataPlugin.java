@@ -25,6 +25,7 @@ import java.io.IOException;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import ru.windcorp.piwcs.vrata.cmd.VrataCommandHandler;
 import ru.windcorp.piwcs.vrata.crates.Packages;
 import ru.windcorp.piwcs.vrata.users.VrataUsers;
 
@@ -73,7 +74,11 @@ public class VrataPlugin extends JavaPlugin {
 			disable("Could not load packages");
 			return;
 		}
+		
+		Bukkit.getPluginManager().registerEvents(new VrataListener(), this);
+		getCommand("vrata").setExecutor(new VrataCommandHandler());
 	}
+	
 	
 	@Override
 	public void onDisable() {

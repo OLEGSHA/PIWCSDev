@@ -20,9 +20,17 @@ package ru.windcorp.piwcs.vrata.exceptions;
 
 import java.util.Objects;
 
-import ru.windcorp.piwcs.vrata.VrataTemplates;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
-public class VrataPermissionException extends Exception {
+import ru.windcorp.piwcs.nestedcmd.NCPermissionException;
+import ru.windcorp.piwcs.vrata.VrataTemplates;
+import ru.windcorp.piwcs.vrata.crates.Package;
+import ru.windcorp.piwcs.vrata.users.VrataUser;
+import ru.windcorp.piwcs.vrata.users.VrataUserProfile;
+import ru.windcorp.piwcs.vrata.users.VrataUsers;
+
+public class VrataPermissionException extends NCPermissionException {
 	
 	private static final long serialVersionUID = -3181709120844515138L;
 	
@@ -36,9 +44,11 @@ public class VrataPermissionException extends Exception {
 	public String getFullMessage() {
 		return fullMessage;
 	}
+	
+	private static final Object[] EMPTY_ARGS = new Object[0];
 
 	public static VrataPermissionException create(String key, Object[] fullOnlyArgs, Object... args) {
-		Objects.requireNonNull(fullOnlyArgs, "fullOnlyArgs is null");
+		if (fullOnlyArgs == null) fullOnlyArgs = EMPTY_ARGS;
 		Objects.requireNonNull(args, "args is null");
 		
 		Object[] fullArray = new Object[fullOnlyArgs.length + args.length];
@@ -46,6 +56,40 @@ public class VrataPermissionException extends Exception {
 		System.arraycopy(fullOnlyArgs, 0, fullArray, args.length, fullOnlyArgs.length);
 		
 		return new VrataPermissionException(VrataTemplates.getf(key, args), VrataTemplates.getf(key + ".full", fullArray));
+	}
+	
+	public static VrataPermissionException checkModerator(VrataUserProfile user) {
+		if (!user.canModerate()) {
+			String problem = VrataTemplates.get("problem.notMod");
+			return new VrataPermissionException(problem, problem);
+		}
+		return null;
+	}
+	
+	public static VrataPermissionException checkAdmin(VrataUserProfile user) {
+		if (!user.isAdmin()) {
+			String problem = VrataTemplates.get("problem.notAdmin");
+			return new VrataPermissionException(problem, problem);
+		}
+		return null;
+	}
+	
+	public static VrataPermissionException checkOwner(VrataUser user, Package pkg) {
+		if (user.getProfile().canModerate()) return null;
+		if (!pkg.isOwner(user.getPlayer())) {
+			String problem = VrataTemplates.getf("problem.notOwner", pkg);
+			return new VrataPermissionException(problem, problem);
+		}
+		return null;
+	}
+	
+	@Override
+	public void report(CommandSender sender) {
+		if (!(sender instanceof Player) || VrataUsers.getProfile(sender.getName()).canModerate()) {
+			sender.sendMessage(getFullMessage());
+		} else {
+			sender.sendMessage(getMessage());
+		}
 	}
 
 }
