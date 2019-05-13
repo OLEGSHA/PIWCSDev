@@ -59,6 +59,7 @@ public class Packages {
 	}
 	
 	public static boolean removePackage(Package pkg) {
+		pkg.setCurrentUser(null);
 		return !PACKAGES.remove(pkg.getUuid(), pkg);
 	}
 	

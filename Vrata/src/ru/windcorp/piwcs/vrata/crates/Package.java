@@ -38,11 +38,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.bukkit.entity.Player;
 
-import ru.windcorp.piwcs.vrata.exceptions.VrataPermissionException;
 import ru.windcorp.piwcs.vrata.users.VrataUser;
+import ru.windcorp.tge2.util.synch.SynchronizedStream;
 
 public class Package implements Iterable<Crate> {
 	
@@ -51,6 +53,7 @@ public class Package implements Iterable<Crate> {
 	private final Set<String> owners = new HashSet<>();
 	
 	private final SortedMap<String, SortedSet<Crate>> batches = new TreeMap<>(Comparator.nullsLast(Comparator.naturalOrder()));
+	private int size = -1;
 	
 	private final File file;
 	private final File descFile;
@@ -65,8 +68,8 @@ public class Package implements Iterable<Crate> {
 		this.uuid = uuid;
 		this.name = name;
 		
-		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".package");
-		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "-" + uuid.toString() + ".desc.txt");
+		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
+		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".desc.txt");
 		
 		Packages.registerPackage(this);
 	}
@@ -81,7 +84,7 @@ public class Package implements Iterable<Crate> {
 					(c >= '0' && c <= '9') ||
 					(c >= 'à' && c <= 'ÿ') ||
 					(c >= 'À' && c <= 'ß') ||
-					c != '-' || c != '_'
+					c == '-' || c == '_'
 					) {
 				continue;
 			}
@@ -205,6 +208,14 @@ public class Package implements Iterable<Crate> {
 		return batches;
 	}
 	
+	public synchronized int size() {
+		return size;
+	}
+	
+	public boolean isEmpty() {
+		return size() == 0;
+	}
+	
 	public synchronized void addCrate(Crate crate) {
 		if (!getUuid().equals(crate.getPackageUuid())) {
 			throw new IllegalArgumentException("Attempted to add crate with package UUID " +
@@ -220,6 +231,7 @@ public class Package implements Iterable<Crate> {
 		
 		modify();
 		batch.add(crate);
+		size++;
 	}
 	
 	public synchronized void removeCrate(Crate crate) {
@@ -229,11 +241,16 @@ public class Package implements Iterable<Crate> {
 		}
 		if (batch.remove(crate)) {
 			modify();
+			size--;
 		}
 	}
 	
 	public Set<String> getOwners() {
 		return owners;
+	}
+	
+	public synchronized void addOwner(VrataUser user) {
+		addOwner(user.getProfile().getName());
 	}
 	
 	public synchronized void addOwner(Player player) {
@@ -248,6 +265,10 @@ public class Package implements Iterable<Crate> {
 		boolean modified = getOwners().remove(player);
 		if (modified) modify();
 		return modified;
+	}
+	
+	public boolean isOwner(VrataUser user) {
+		return isOwner(user.getProfile().getName());
 	}
 	
 	public boolean isOwner(Player player) {
@@ -286,7 +307,7 @@ public class Package implements Iterable<Crate> {
 
 			private void checkComodification() {
 				if (expectedModCount != modCount) {
-					throw new ConcurrentModificationException("Package has been modified since this iterator was created");
+					throw new ConcurrentModificationException("Package " + Package.this + " has been modified since this iterator was created");
 				}
 			}
 
@@ -311,6 +332,10 @@ public class Package implements Iterable<Crate> {
 		};
 	}
 	
+	public Stream<Crate> stream() {
+		return new SynchronizedStream<>(StreamSupport.stream(this::spliterator, 0, false), this);
+	}
+	
 	@Override
 	public synchronized void forEach(Consumer<? super Crate> action) {
 		Iterable.super.forEach(action);
@@ -320,9 +345,9 @@ public class Package implements Iterable<Crate> {
 		return currentUser;
 	}
 
-	public synchronized void setCurrentUser(VrataUser user) throws VrataPermissionException {
-		if (user != null && this.currentUser != null) {
-			throw VrataPermissionException.create("package.alreadyInUse", new Object[] {this.currentUser}, this);
+	public synchronized void setCurrentUser(VrataUser user) {
+		if (this.currentUser != null) {
+			this.currentUser.setCurrentPackage(null);
 		}
 		
 		this.currentUser = user;

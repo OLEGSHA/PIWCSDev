@@ -25,55 +25,82 @@ import java.util.Scanner;
 
 public class VrataUserProfile {
 	
-	private final String name;
-	private boolean isAdmin;
-	private boolean isModerator;
-	
-	public VrataUserProfile(String name) {
-		this(name, false, false);
+	public static enum Status {
+		NON_PLAYER,
+		ADMIN,
+		MODERATOR,
+		USER
 	}
 	
-	protected VrataUserProfile(String name, boolean isAdmin, boolean isModerator) {
+	private final String name;
+	private Status status;
+	
+//	public VrataUserProfile(String name) {
+//		this(name, false, false);
+//	}
+	
+	protected VrataUserProfile(String name, Status status) {
 		this.name = name;
-		this.isAdmin = isAdmin;
-		this.isModerator = isModerator;
+		this.status = status;
 	}
 	
 	public String getName() {
 		return name;
 	}
 	
-	public boolean isAdmin() {
-		return isAdmin;
+	public Status getStatus() {
+		return status;
 	}
 	
-	public void setAdmin(boolean isAdmin) {
-		this.isAdmin = isAdmin;
+	public void setStatus(Status status) {
+		this.status = status;
+	}
+	
+	public void promote(Status newStatus) {
+		if (!isAtLeast(newStatus)) {
+			setStatus(newStatus);
+		}
+	}
+	
+	public void demote(Status newStatus) {
+		if (isAtLeast(newStatus)) {
+			setStatus(newStatus);
+		}
+	}
+	
+	public boolean isAtLeast(Status status) {
+		return status.compareTo(getStatus()) <= 0;
+	}
+	
+	public boolean isAdmin() {
+		return isAtLeast(Status.ADMIN);
 	}
 	
 	public boolean isModerator() {
-		return isModerator;
-	}
-	
-	public void setModerator(boolean isModerator) {
-		this.isModerator = isModerator;
-	}
-	
-	public boolean canModerate() {
-		return isAdmin() || isModerator();
+		return isAtLeast(Status.MODERATOR);
 	}
 	
 	public static VrataUserProfile load(Scanner input) throws NoSuchElementException {
-		return new VrataUserProfile(input.next(), input.nextBoolean(), input.nextBoolean());
+		String name = input.next();
+		Status status;
+		try {
+			status = Status.valueOf(input.next());
+		} catch (IllegalArgumentException e) {
+			status = Status.USER;
+		}
+		return new VrataUserProfile(name, status);
 	}
 	
 	public void save(Writer output) throws IOException {
 		output.write(getName());
 		output.write(" ");
-		output.write(Boolean.toString(isAdmin()));
-		output.write(" ");
-		output.write(Boolean.toString(isModerator()));
+		output.write(getStatus().name());
 		output.write("\n");
+	}
+	
+	@Override
+	public String toString() {
+		return "[" + getStatus().toString() + "] " + getName();
 	}
 
 }

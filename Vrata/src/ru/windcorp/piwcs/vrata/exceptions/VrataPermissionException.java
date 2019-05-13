@@ -59,7 +59,7 @@ public class VrataPermissionException extends NCPermissionException {
 	}
 	
 	public static VrataPermissionException checkModerator(VrataUserProfile user) {
-		if (!user.canModerate()) {
+		if (!user.isModerator()) {
 			String problem = VrataTemplates.get("problem.notMod");
 			return new VrataPermissionException(problem, problem);
 		}
@@ -74,18 +74,14 @@ public class VrataPermissionException extends NCPermissionException {
 		return null;
 	}
 	
-	public static VrataPermissionException checkOwner(VrataUser user, Package pkg) {
-		if (user.getProfile().canModerate()) return null;
-		if (!pkg.isOwner(user.getPlayer())) {
-			String problem = VrataTemplates.getf("problem.notOwner", pkg);
-			return new VrataPermissionException(problem, problem);
-		}
-		return null;
+	public static VrataPermissionException createNotPackageOwner(VrataUser user, Package pkg) {
+		String problem = VrataTemplates.getf("problem.notOwner", pkg);
+		return new VrataPermissionException(problem, problem);
 	}
 	
 	@Override
 	public void report(CommandSender sender) {
-		if (!(sender instanceof Player) || VrataUsers.getProfile(sender.getName()).canModerate()) {
+		if (!(sender instanceof Player) || VrataUsers.getPlayerProfile(sender.getName()).isModerator()) {
 			sender.sendMessage(getFullMessage());
 		} else {
 			sender.sendMessage(getMessage());

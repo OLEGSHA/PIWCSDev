@@ -20,30 +20,36 @@ package ru.windcorp.piwcs.vrata.users;
 
 import java.util.List;
 
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import ru.windcorp.piwcs.vrata.cmd.VrataCommandHandler;
 import ru.windcorp.piwcs.vrata.crates.Crate;
 import ru.windcorp.piwcs.vrata.crates.Package;
 
 public class VrataUser {
 	
-	private final Player player;
+	private final CommandSender sender;
 	private final VrataUserProfile profile;
 	
 	private Package currentPackage = null;
 	private List<Crate> currentDeploymentQueue = null;
 	
-	public VrataUser(Player player, VrataUserProfile profile) {
-		this.player = player;
+	public VrataUser(CommandSender sender, VrataUserProfile profile) {
+		this.sender = sender;
 		this.profile = profile;
 	}
 	
+	public CommandSender getSender() {
+		return sender;
+	}
+	
 	public Player getPlayer() {
-		return player;
+		return (Player) sender;
 	}
 	
 	public void sendMessage(String message) {
-		getPlayer().sendMessage(message);
+		getSender().sendMessage(message);
 	}
 	
 	public VrataUserProfile getProfile() {
@@ -55,7 +61,9 @@ public class VrataUser {
 	}
 	
 	public void setCurrentPackage(Package currentPackage) {
+		VrataCommandHandler.onPackageSelectionChanged(this, this.currentPackage, currentPackage);
 		this.currentPackage = currentPackage;
+		this.currentDeploymentQueue = null;
 	}
 	
 	public List<Crate> getCurrentDeploymentQueue() {
@@ -64,6 +72,11 @@ public class VrataUser {
 	
 	public void setCurrentDeploymentQueue(List<Crate> currentDeploymentQueue) {
 		this.currentDeploymentQueue = currentDeploymentQueue;
+	}
+	
+	@Override
+	public String toString() {
+		return getProfile().toString();
 	}
 
 }

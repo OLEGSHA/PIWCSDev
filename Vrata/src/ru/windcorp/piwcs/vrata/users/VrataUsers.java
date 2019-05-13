@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.WeakHashMap;
 
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.VrataPlugin;
@@ -39,7 +40,7 @@ import ru.windcorp.piwcs.vrata.VrataPlugin;
 public class VrataUsers {
 	
 	private static final Map<String, VrataUserProfile> PROFILES = new HashMap<>();
-	private static final WeakHashMap<Player, VrataUser> USERS = new WeakHashMap<>();
+	private static final WeakHashMap<CommandSender, VrataUser> USERS = new WeakHashMap<>();
 	private static boolean loadedSuccessfully = false;
 	
 	private static final File DATABASE_FILE = new File(VrataPlugin.getInst().getDataFolder(), "database.db");
@@ -74,25 +75,29 @@ public class VrataUsers {
 		}
 	}
 	
-	public static synchronized VrataUserProfile getProfile(String name) {
+	public static synchronized VrataUserProfile getPlayerProfile(String name) {
 		name = name.toLowerCase();
 		
 		VrataUserProfile profile = PROFILES.get(name);
 		
 		if (profile == null) {
-			profile = new VrataUserProfile(name);
+			profile = new VrataUserProfile(name, VrataUserProfile.Status.USER);
 			PROFILES.put(name, profile);
 		}
 		
 		return profile;
 	}
 	
-	public static synchronized VrataUser getUser(Player player) {
-		VrataUser user = USERS.get(player);
+	public static synchronized VrataUser getUser(CommandSender sender) {
+		VrataUser user = USERS.get(sender);
 		
 		if (user == null) {
-			user = new VrataUser(player, getProfile(player.getName()));
-			USERS.put(player, user);
+			if (sender instanceof Player) {
+				user = new VrataUser(sender, getPlayerProfile(sender.getName()));
+			} else {
+				user = new VrataUser(sender, new VrataUserProfile(sender.getName(), VrataUserProfile.Status.NON_PLAYER));
+			}
+			USERS.put(sender, user);
 		}
 		
 		return user;

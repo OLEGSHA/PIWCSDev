@@ -26,7 +26,7 @@ import org.bukkit.command.CommandSender;
 public interface SubCommandExecutor {
 	
 	void run(
-			CommandSender player,
+			CommandSender sender,
 			List<String> args,
 			String fullCommand
 			)
@@ -36,5 +36,12 @@ public interface SubCommandExecutor {
 			NCExecutionException,
 			NCSyntaxException,
 			NCComplaintException;
+	
+	default SubCommandExecutor then(final SubCommandExecutor other) {
+		return (sender, args, fullCommand) -> {
+			SubCommandExecutor.this.run(sender, args, fullCommand);
+			other.run(sender, args, fullCommand);
+		};
+	}
 
 }

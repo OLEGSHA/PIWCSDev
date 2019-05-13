@@ -18,12 +18,14 @@
 
 package ru.windcorp.piwcs.vrata;
 
+import ru.windcorp.piwcs.nestedcmd.*;
 import ru.windcorp.piwcs.vrata.crates.*;
 import ru.windcorp.piwcs.vrata.crates.Package;
+import ru.windcorp.piwcs.vrata.exceptions.*;
 import ru.windcorp.piwcs.vrata.users.*;
 
-import static ru.windcorp.piwcs.vrata.users.VrataUsers.*;
 import static ru.windcorp.piwcs.vrata.VrataLogger.write;
+import static ru.windcorp.piwcs.vrata.VrataTemplates.*;
 
 import java.util.UUID;
 
@@ -34,16 +36,51 @@ public class VrataUserInterface {
 		write("Created new package %s", pkg);
 		return pkg;
 	}
+
+	public static void removePackage(Package pkg) throws NCComplaintException, VrataPermissionException {
+		if (!pkg.isEmpty()) {
+			throw new NCComplaintException(getf("cmd.removePackage.problem.notEmpty", pkg));
+		}
+		
+		selectPackage(pkg, null);
+		Packages.removePackage(pkg);
+	}
 	
 	public static void addPackageOwner(Package pkg, String owner) {
 		pkg.addOwner(owner);
 		write("Added owner %s to package %s", owner, pkg);
 	}
 	
-	public static void selectPackage(Package pkg, VrataUser user) {
-		user.setCurrentPackage(pkg);
-		// TODO: log and check everything
-		//user.
+	public static void selectPackage(Package pkg, VrataUser user) throws VrataPermissionException {
+		if (pkg == null) {
+			pkg = user.getCurrentPackage();
+			user = null;
+		}
+		
+		if (pkg.getCurrentUser() == user) {
+			return;
+		}
+		
+		if (user != null && !user.getProfile().isModerator()) {
+			if (pkg.getCurrentUser() != null) {
+				throw VrataPermissionException.create("package.alreadyInUse", new Object[] {pkg.getCurrentUser()}, pkg);
+			}
+			if (!pkg.isOwner(user)) {
+				throw VrataPermissionException.createNotPackageOwner(user, pkg);
+			}
+		}
+		
+		pkg.setCurrentUser(user);
+	}
+
+	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {
+		if (oldPkg == null) {
+			write("User %s selected package %s", user, newPkg);
+		} else if (newPkg == null) {
+			write("User %s deselected package %s", user, oldPkg);
+		} else {
+			write("User %s changed selected package from %s to %s", user, oldPkg, newPkg);
+		}
 	}
 
 }
