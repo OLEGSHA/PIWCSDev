@@ -44,7 +44,7 @@ import java.util.stream.StreamSupport;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.users.VrataUser;
-import ru.windcorp.tge2.util.synch.SynchronizedStream;
+import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Package implements Iterable<Crate> {
 	
@@ -333,7 +333,7 @@ public class Package implements Iterable<Crate> {
 	}
 	
 	public Stream<Crate> stream() {
-		return new SynchronizedStream<>(StreamSupport.stream(this::spliterator, 0, false), this);
+		return SyncStreams.synchronizedStream(StreamSupport.stream(this::spliterator, 0, false), this);
 	}
 	
 	@Override
