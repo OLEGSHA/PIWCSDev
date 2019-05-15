@@ -44,6 +44,10 @@ public class VrataUser {
 		return sender;
 	}
 	
+	public boolean isPlayer() {
+		return sender instanceof Player;
+	}
+	
 	public Player getPlayer() {
 		return (Player) sender;
 	}

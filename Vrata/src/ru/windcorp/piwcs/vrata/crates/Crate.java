@@ -38,7 +38,7 @@ public class Crate {
 	
 	private final UUID uuid;
 	private final UUID pkg;
-	private String batch;
+	private String batch = null;
 	
 	private final Instant creationTime;
 	

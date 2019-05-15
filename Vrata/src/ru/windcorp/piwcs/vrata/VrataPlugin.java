@@ -26,6 +26,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import ru.windcorp.piwcs.vrata.cmd.VrataCommandHandler;
+import ru.windcorp.piwcs.vrata.cmd.VrataListener;
 import ru.windcorp.piwcs.vrata.crates.Packages;
 import ru.windcorp.piwcs.vrata.users.VrataUsers;
 

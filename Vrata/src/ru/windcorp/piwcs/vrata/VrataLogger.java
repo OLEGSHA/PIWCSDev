@@ -20,6 +20,7 @@ package ru.windcorp.piwcs.vrata;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -35,12 +36,17 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Logger;
 
+import ru.windcorp.piwcs.vrata.crates.Crate;
+
 public class VrataLogger {
 	
 	private static File logDirectory;
 	private static final String FILE_PATTERN = "vrata-log-%1$tF.log";
 	private static final String ENTRY_PATTERN = "[%1$tT] %2$s";
+	private static final String CRATE_LOG_FILE = "vrata-crates.log";
+	private static final String CRATE_ENTRY_PATTERN = "%1$tT %2$100s %3$s = %3$s";
 	private static Writer writer;
+	private static Writer crateWriter;
 	
 	private static Logger backupLogger;
 	private static final String BACKUP_PREFIX = "[Log] ";
@@ -65,6 +71,24 @@ public class VrataLogger {
 				// While I'm on that page, I really hate calendars
 				new Date(firstLaunch.toEpochSecond() * 1000),
 				24l * 60 * 60 * 1000);
+
+		updateFile();
+		
+		try {
+			crateWriter = new BufferedWriter(
+					new OutputStreamWriter(
+							new FileOutputStream(
+									new File(
+											logDirectory,
+											CRATE_LOG_FILE
+									),
+									true
+							),
+					StandardCharsets.UTF_8)
+			);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 		
 		write("Plugin enabled");
 	}
@@ -119,8 +143,6 @@ public class VrataLogger {
 	}
 
 	public static synchronized void write(String message) {
-		updateFile();
-		
 		if (writer == null) {
 			backupLogger.info(BACKUP_PREFIX + message);
 			return;
@@ -136,6 +158,28 @@ public class VrataLogger {
 	
 	public static void write(String format, Object... args) {
 		write(String.format(format, args));
+	}
+	
+	public static synchronized void writeCrate(Crate crate) {
+		if (crateWriter == null) {
+			write(CRATE_ENTRY_PATTERN, crate.getCreationTime(), crate.toString(), crate.getUuid(), crate.getDescription());
+			return;
+		}
+		
+		try {
+			crateWriter.write(String.format(CRATE_ENTRY_PATTERN, crate.getCreationTime(), crate.toString(), crate.getUuid(), crate.getDescription()));
+			crateWriter.write("\n");
+		} catch (IOException e) {
+			write("IOException occured in VrataLogger: " + e);
+			write("Dumping crates to main log");
+			
+			try {
+				crateWriter.close();
+			} catch (IOException ignore) {}
+			crateWriter = null;
+
+			writeCrate(crate);
+		}
 	}
 
 	private static void handleIOException(String message, IOException e) {

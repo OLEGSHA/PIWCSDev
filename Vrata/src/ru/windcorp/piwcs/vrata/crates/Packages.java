@@ -28,15 +28,19 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
+
+import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Packages {
 	
 	private static File saveDir = null;
 	
-	private static final Map<UUID, Package> PACKAGES = new HashMap<>();
+	private static final Map<UUID, Package> PACKAGES = Collections.synchronizedMap(new HashMap<>());
 	
 	public static void setSaveDirectory(File saveDir) {
 		Packages.saveDir = saveDir;
@@ -48,6 +52,10 @@ public class Packages {
 
 	public static Collection<Package> getPackages() {
 		return PACKAGES.values();
+	}
+	
+	public static Stream<Package> packages() {
+		return SyncStreams.synchronizedStream(getPackages().stream(), getPackages());
 	}
 	
 	public static Package getPackage(UUID uuid) {

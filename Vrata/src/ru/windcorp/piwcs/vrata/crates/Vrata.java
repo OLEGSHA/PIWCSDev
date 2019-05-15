@@ -31,6 +31,7 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import ru.windcorp.piwcs.nestedcmd.NCComplaintException;
 import ru.windcorp.piwcs.vrata.exceptions.VrataOperationException;
 
 public class Vrata {
@@ -87,7 +88,7 @@ public class Vrata {
 		return crate;
 	}
 	
-	public static void exportContainer(Player player, Crate crate) throws VrataOperationException {
+	public static void exportContainer(Player player, Crate crate) throws VrataOperationException, NCComplaintException {
 		if (crate.isDeployed()) {
 			throw new IllegalStateException("Crate " + crate + " has been deployed already");
 		}
@@ -99,7 +100,7 @@ public class Vrata {
 		Inventory inventory = player.getOpenInventory().getTopInventory();
 		
 		if (inventory.getSize() - inventory.getContents().length < crate.getSlots()) {
-			throw new IllegalStateException("Too little space: " + crate.getSlots() +
+			throw new NCComplaintException("Too little space: " + crate.getSlots() +
 					" required, " + (inventory.getSize() - inventory.getContents().length) + " available");
 		}
 		

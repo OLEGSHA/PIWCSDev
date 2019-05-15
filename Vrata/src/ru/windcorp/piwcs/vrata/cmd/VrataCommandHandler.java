@@ -19,6 +19,7 @@
 package ru.windcorp.piwcs.vrata.cmd;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -95,9 +96,26 @@ public class VrataCommandHandler implements CommandExecutor {
 								new String[] {"list", "view"},
 								new String[] {"Package", "Pkg"},
 								new String[] {"s", ""}),
-						get("cmd.listPackages.desc"), get("cmd.listPackages.syntax"),
+						get("cmd.listPackages.desc"), "",
 						VrataCommandHandler::cmdListPackages,
-						null)
+						null),
+				
+				new SubCommand(
+						"pack",
+						get("cmd.pack.desc"), get("cmd.pack.syntax"),
+						checkPackageSelected.then(VrataCommandHandler::cmdPack),
+						isPlayer),
+				
+				new SubCommand(
+						new String[] {"deploy", "unpack"},
+						get("cmd.deploy.desc"), "",
+						checkPackageSelected.then(VrataCommandHandler::cmdDeploy),
+						isPlayer),
+				
+				new SubCommand("stop",
+						get("cmd.stop.desc"), "",
+						VrataCommandHandler::cmdStop,
+						isPlayer)
 				
 				);
 	}
@@ -113,7 +131,8 @@ public class VrataCommandHandler implements CommandExecutor {
 		return true;
 	}
 	
-	private static void cmdNew(CommandSender sender, List<String> args, String fullCommand) throws NCSyntaxException, NCComplaintException, VrataPermissionException {
+	private static void cmdNew(CommandSender sender, List<String> args, String fullCommand)
+			throws NCSyntaxException, NCComplaintException, VrataPermissionException {
 		if (args.isEmpty()) {
 			throw new NCSyntaxException(get("cmd.new.problem.noName"));
 		}
@@ -135,7 +154,8 @@ public class VrataCommandHandler implements CommandExecutor {
 		sender.sendMessage(getf("cmd.new.success", pkg, pkg.getUuid()));
 	}
 	
-	private static void cmdSelect(CommandSender sender, List<String> args, String fullCommand) throws NCSyntaxException, NCComplaintException, VrataPermissionException {
+	private static void cmdSelect(CommandSender sender, List<String> args, String fullCommand)
+			throws NCSyntaxException, NCComplaintException, VrataPermissionException {
 		VrataUser user = VrataUsers.getUser(sender);
 		
 		if (args.isEmpty()) {
@@ -202,22 +222,66 @@ public class VrataCommandHandler implements CommandExecutor {
 		user.sendMessage(get("cmd.select.success.select"));
 	}
 	
-	private static void cmdRemovePackage(CommandSender sender, List<String> args, String fullCommand) throws NCComplaintException, VrataPermissionException {
+	private static void cmdRemovePackage(CommandSender sender, List<String> args, String fullCommand)
+			throws NCComplaintException, VrataPermissionException, NCSyntaxException {
 		Package pkg = VrataUsers.getUser(sender).getCurrentPackage();
+		if (!args.isEmpty()) {
+			throw new NCSyntaxException(getf("cmd.removePackage.problem.args", pkg));
+		}
 		VrataUserInterface.removePackage(pkg);
 		sender.sendMessage(getf("cmd.removePackage.success"));
 	}
 	
-	private static void cmdListPackages(CommandSender sender, List<String> args, String fullCommand) throws NCComplaintException, VrataPermissionException {
+	private static void cmdListPackages(CommandSender sender, List<String> args, String fullCommand)
+			throws NCComplaintException, VrataPermissionException {
+		
+		VrataUser user = VrataUsers.getUser(sender);
+		Collection<Package> pkgs = Packages.packages()
+				.filter(p -> p.getOwners()
+				.contains(user.getProfile().getName()))
+				.collect(Collectors.toList());
+		
+		if (pkgs.isEmpty()) {
+			user.sendMessage(get("cmd.listPackages.success.noPackages"));
+			return;
+		}
+		
+		if (pkgs.size() == 1) {
+			user.sendMessage(get("cmd.listPackages.success.onePackage"));
+			Package theOne = pkgs.iterator().next();
+			user.sendMessage(getf("cmd.packageListFormat", theOne.getName(), theOne.getUuid(), 1));
+			return;
+		}
+		
+		user.sendMessage(getf("cmd.listPackages.success.manyPackages", pkgs.size()));
+		sendPackageList(pkgs, user::sendMessage);
+	}
+	
+	private static void cmdPack(CommandSender sender, List<String> args, String fullCommand) {
+		String batch = null;
+		if (!args.isEmpty()) {
+			batch = args.get(0);
+		}
+		VrataPacker.startPacking(batch, VrataUsers.getUser(sender));
+	}
+	
+	private static void cmdDeploy(CommandSender sender, List<String> args, String fullCommand) {
 		// TODO
 	}
 	
+	private static void cmdStop(CommandSender sender, List<String> args, String fullCommand) {
+		if (!VrataListener.unregisterHandler(VrataUsers.getUser(sender).getPlayer())) {
+			sender.sendMessage(get("cmd.stop.problem.nothingToStop"));
+		}
+	}
+	
 	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {
-		// TODO: stop conversing and deploying
+		if (user.isPlayer()) VrataListener.unregisterHandler(user.getPlayer());
 		VrataUserInterface.onPackageSelectionChanged(user, oldPkg, newPkg);
 	}
 	
-	private static void checkPackageSelection(CommandSender sender, List<String> args, String fullCommand) throws NCComplaintException {
+	private static void checkPackageSelection(CommandSender sender, List<String> args, String fullCommand)
+			throws NCComplaintException {
 		if (VrataUsers.getUser(sender).getCurrentPackage() == null) {
 			throw new NCComplaintException(get("cmd.noPackageSelected"));
 		}
