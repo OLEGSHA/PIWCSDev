@@ -27,17 +27,32 @@ import java.util.Comparator;
 import java.util.UUID;
 import java.util.function.Function;
 
+import ru.windcorp.piwcs.vrata.users.VrataUser;
+
 public class Crate {
 	
 	private static final long MAGIC_NUMBER = 0xFFFF_3103_2019_FFFFl;
 	
 	public static final Comparator<Crate> INTRABATCH_DEPLOY_ORDER = Comparator.comparing(crate -> crate.getCreationTime());
 	public static final Comparator<Crate> TOTAL_DEPLOY_ORDER =
-			Comparator.comparing((Function<Crate, String>) crate -> crate.getBatch())
-			.thenComparing(INTRABATCH_DEPLOY_ORDER);
+			Comparator.comparing(
+					(Function<Crate, Boolean>)
+					crate -> crate.isModerated()
+					)
+			.thenComparing(
+					Comparator.nullsLast(
+							Comparator.comparing(
+									(Function<Crate, String>)
+									crate -> crate.getBatch()
+									)
+							)
+					)
+			.thenComparing(
+					INTRABATCH_DEPLOY_ORDER
+					);
 	
 	private final UUID uuid;
-	private final UUID pkg;
+	private Package pkg = null;
 	private String batch = null;
 	
 	private final Instant creationTime;
@@ -53,7 +68,7 @@ public class Crate {
 	private boolean hasBeenAdded;
 	
 	private Crate(
-			UUID uuid, UUID pkg,
+			UUID uuid,
 			String batch,
 			Instant creationTime,
 			byte[] nbtData, int slots,
@@ -61,7 +76,6 @@ public class Crate {
 			boolean deployed, boolean moderated,
 			boolean modifiedFlag, boolean hasBeenAdded) {
 		this.uuid = uuid;
-		this.pkg = pkg;
 		this.batch = batch;
 		this.creationTime = creationTime;
 		this.nbtData = nbtData;
@@ -74,11 +88,10 @@ public class Crate {
 		this.hasBeenAdded = hasBeenAdded;
 	}
 	
-	public static Crate createNew(Package pkg, byte[] nbtData, int slots, String description) {
+	public static Crate createNew(byte[] nbtData, int slots, String description) {
 		return new Crate(
 				
 				UUID.randomUUID(),
-				pkg.getUuid(),
 				
 				null,
 				Instant.now(),
@@ -108,7 +121,6 @@ public class Crate {
 			return new Crate(
 					
 					own = new UUID(input.readLong(), input.readLong()),
-					pkg = new UUID(input.readLong(), input.readLong()),
 					
 					readBatch(input),
 					Instant.ofEpochSecond(input.readLong()),
@@ -165,8 +177,6 @@ public class Crate {
 		
 		output.writeLong(uuid.getMostSignificantBits());
 		output.writeLong(uuid.getLeastSignificantBits());
-		output.writeLong(pkg.getMostSignificantBits());
-		output.writeLong(pkg.getLeastSignificantBits());
 		
 		if (batch == null) {
 			output.writeUTF("");
@@ -208,6 +218,15 @@ public class Crate {
 		markForSaving();
 	}
 	
+	public boolean canDeploy(VrataUser user) {
+		return !isDeployed()
+				&& (
+						user.getProfile().isModerator()
+					 || isModerated()
+					 || getPackage().isLocal()
+				   );
+	}
+	
 	public String getBatch() {
 		return batch;
 	}
@@ -225,7 +244,16 @@ public class Crate {
 	}
 
 	public UUID getPackageUuid() {
+		if (pkg == null) return null;
+		return pkg.getUuid();
+	}
+	
+	public Package getPackage() {
 		return pkg;
+	}
+	
+	void setPackage(Package pkg) {
+		this.pkg = pkg;
 	}
 
 	public Instant getCreationTime() {

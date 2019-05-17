@@ -108,7 +108,7 @@ public class VrataCommandHandler implements CommandExecutor {
 				
 				new SubCommand(
 						new String[] {"deploy", "unpack"},
-						get("cmd.deploy.desc"), "",
+						get("cmd.deploy.desc"), get("cmd.deploy.syntax"),
 						checkPackageSelected.then(VrataCommandHandler::cmdDeploy),
 						isPlayer),
 				
@@ -162,10 +162,9 @@ public class VrataCommandHandler implements CommandExecutor {
 			Package pkg = user.getCurrentPackage();
 			if (pkg == null) {
 				throw new NCComplaintException(get("cmd.select.problem.nothingSelected"));
-			} else {
-				pkg.setCurrentUser(null);
-				user.sendMessage(getf("cmd.select.success.deselect", pkg));
 			}
+			pkg.setCurrentUser(null);
+			user.sendMessage(getf("cmd.select.success.deselect", pkg));
 			return;
 		}
 		
@@ -266,7 +265,9 @@ public class VrataCommandHandler implements CommandExecutor {
 	}
 	
 	private static void cmdDeploy(CommandSender sender, List<String> args, String fullCommand) {
-		// TODO
+		boolean displaySkips = args.remove("displaySkips");
+		String firstSorter = args.isEmpty() ? null : args.get(0);
+		VrataDeployer.startDeploying(VrataUsers.getUser(sender), firstSorter, displaySkips);
 	}
 	
 	private static void cmdStop(CommandSender sender, List<String> args, String fullCommand) {

@@ -27,6 +27,8 @@ import ru.windcorp.piwcs.vrata.users.VrataUser;
 
 import static ru.windcorp.piwcs.vrata.VrataTemplates.*;
 
+import org.bukkit.inventory.Inventory;
+
 import ru.windcorp.piwcs.vrata.VrataLogger;
 import ru.windcorp.piwcs.vrata.VrataPlugin;
 
@@ -50,15 +52,18 @@ public class VrataPacker implements VrataPlayerHandler {
 	}
 	
 	@Override
-	public void onInventoryOpened() {
+	public void onInventoryOpened(Inventory inventory) {
+		if (!Vrata.isAContainer(inventory)) return;
+		
 		Package pkg = user.getCurrentPackage();
 		Crate crate;
 		
 		try {
-			crate = Vrata.importContainer(user.getPlayer(), pkg);
+			crate = Vrata.importContainer(user.getPlayer());
 		} catch (VrataOperationException e) {
 			user.sendMessage(getf("cmd.pack.problem.exception", e.getMessage(), String.valueOf(e.getCause())));
-			String msg = String.format("User %s attempted to pack a crate but caused an exception: %s", user, e);
+			String msg = String.format("User %s attempted to pack a crate from %s but caused an exception: %s",
+					user, Vrata.describeInventory(inventory, user.getPlayer()), e);
 			VrataLogger.write(msg);
 			VrataPlugin.getInst().getLogger().severe(msg);
 			e.printStackTrace();
@@ -66,12 +71,13 @@ public class VrataPacker implements VrataPlayerHandler {
 		}
 
 		crate.setBatch(batch);
-		pkg.addCrate(crate);
+		pkg.add(crate);
 		
-		VrataLogger.write("%s packed crate %s (UUID %s) into package %s (UUID %s)",
+		VrataLogger.write("%s packed crate %s (UUID %s) into package %s (UUID %s) from %s",
 				user,
 				crate, crate.getUuid(),
-				pkg, pkg.getUuid());
+				pkg, pkg.getUuid(),
+				Vrata.describeInventory(inventory, user.getPlayer()));
 		VrataLogger.writeCrate(crate);
 		user.sendMessage(getf("cmd.pack.packed", crate));
 		

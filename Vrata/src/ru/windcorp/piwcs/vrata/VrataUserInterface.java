@@ -32,7 +32,7 @@ import java.util.UUID;
 public class VrataUserInterface {
 	
 	public static Package createNewPackage(String name) {
-		Package pkg = new Package(UUID.randomUUID(), name);
+		Package pkg = new Package(UUID.randomUUID(), Package.getLocalUniverseId(), name);
 		write("Created new package %s", pkg);
 		return pkg;
 	}

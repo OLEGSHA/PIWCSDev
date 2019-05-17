@@ -18,13 +18,10 @@
 
 package ru.windcorp.piwcs.vrata.users;
 
-import java.util.List;
-
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.cmd.VrataCommandHandler;
-import ru.windcorp.piwcs.vrata.crates.Crate;
 import ru.windcorp.piwcs.vrata.crates.Package;
 
 public class VrataUser {
@@ -33,7 +30,6 @@ public class VrataUser {
 	private final VrataUserProfile profile;
 	
 	private Package currentPackage = null;
-	private List<Crate> currentDeploymentQueue = null;
 	
 	public VrataUser(CommandSender sender, VrataUserProfile profile) {
 		this.sender = sender;
@@ -67,15 +63,6 @@ public class VrataUser {
 	public void setCurrentPackage(Package currentPackage) {
 		VrataCommandHandler.onPackageSelectionChanged(this, this.currentPackage, currentPackage);
 		this.currentPackage = currentPackage;
-		this.currentDeploymentQueue = null;
-	}
-	
-	public List<Crate> getCurrentDeploymentQueue() {
-		return currentDeploymentQueue;
-	}
-	
-	public void setCurrentDeploymentQueue(List<Crate> currentDeploymentQueue) {
-		this.currentDeploymentQueue = currentDeploymentQueue;
 	}
 	
 	@Override

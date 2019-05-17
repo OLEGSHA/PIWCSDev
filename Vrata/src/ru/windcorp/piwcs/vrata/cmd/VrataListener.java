@@ -26,6 +26,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.inventory.Inventory;
 
 @SuppressWarnings("static-method")
 public class VrataListener implements Listener {
@@ -36,7 +37,7 @@ public class VrataListener implements Listener {
 			return false;
 		}
 		
-		void onInventoryOpened();
+		void onInventoryOpened(Inventory inventory);
 		void onUnregistered();
 		
 	}
@@ -67,7 +68,7 @@ public class VrataListener implements Listener {
 		synchronized (HANDLERS) {
 			VrataPlayerHandler handler = HANDLERS.get(e.getPlayer());
 			if (handler != null) {
-				handler.onInventoryOpened();
+				handler.onInventoryOpened(e.getInventory());
 			}
 		}
 	}

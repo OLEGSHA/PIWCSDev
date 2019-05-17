@@ -23,49 +23,56 @@ import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.AbstractSet;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map.Entry;
-import java.util.NoSuchElementException;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.users.VrataUser;
 import ru.windcorp.tge2.util.synch.SyncStreams;
 
-public class Package implements Iterable<Crate> {
+public class Package extends AbstractSet<Crate> {
 	
 	private final UUID uuid;
+	private final long universeId;
 	private String name;
 	private final Set<String> owners = new HashSet<>();
 	
-	private final SortedMap<String, SortedSet<Crate>> batches = new TreeMap<>(Comparator.nullsLast(Comparator.naturalOrder()));
-	private int size = -1;
+	private final List<Crate> crates = new ArrayList<>();
+	
+	private String sorter = null;
+	private Comparator<? super Crate> currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+	private int deployIndex = 0;
 	
 	private final File file;
 	private final File descFile;
 	
-	private int modCount = 0;
 	private VrataUser currentUser = null;
 	
 	private boolean isModified = true;
 	private boolean isDescriptionOutdated = true;
 	
-	public Package(UUID uuid, String name) {
+	public Package(UUID uuid, long universeId, String name) {
 		this.uuid = uuid;
+		this.universeId = universeId;
 		this.name = name;
 		
 		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
@@ -82,8 +89,8 @@ public class Package implements Iterable<Crate> {
 					(c >= 'a' && c <= 'z') ||
 					(c >= 'A' && c <= 'Z') ||
 					(c >= '0' && c <= '9') ||
-					(c >= 'à' && c <= 'ÿ') ||
-					(c >= 'À' && c <= 'ß') ||
+					(c >= '\u0430' && c <= '\u044f') ||
+					(c >= '\u0410' && c <= '\u042f') ||
 					c == '-' || c == '_'
 					) {
 				continue;
@@ -99,6 +106,7 @@ public class Package implements Iterable<Crate> {
 		Package result = new Package(
 				
 				new UUID(input.readLong(), input.readLong()),
+				input.readLong(),
 				input.readUTF()
 				
 				);
@@ -120,7 +128,7 @@ public class Package implements Iterable<Crate> {
 		}
 		
 		for (int i = 0; i < crates; ++i) {
-			result.addCrate(Crate.load(input));
+			result.add(Crate.load(input));
 		}
 		
 		result.isModified = false;
@@ -132,16 +140,14 @@ public class Package implements Iterable<Crate> {
 	public synchronized void save(DataOutput output) throws IOException {
 		output.writeLong(uuid.getMostSignificantBits());
 		output.writeLong(uuid.getLeastSignificantBits());
+		output.writeLong(universeId);
 		output.writeUTF(name);
 		
 		output.writeInt(owners.size());
 		for (String owner : owners) output.writeUTF(owner);
 		
-		Collection<Crate> crates = new ArrayList<>(64);
-		batches.forEach((name, batch) -> crates.addAll(batch));
-		
-		output.writeInt(crates.size());
-		for (Crate crate : crates) crate.save(output);
+		output.writeInt(size());
+		for (Crate crate : this) crate.save(output);
 		
 		this.isModified = false;
 	}
@@ -171,11 +177,9 @@ public class Package implements Iterable<Crate> {
 			return true;
 		}
 		
-		for (Entry<String, SortedSet<Crate>> batch : batches.entrySet()) {
-			for (Crate crate : batch.getValue()) {
-				if (crate.needsSaving()) {
-					return true;
-				}
+		for (Crate crate : this) {
+			if (crate.needsSaving()) {
+				return true;
 			}
 		}
 		
@@ -183,7 +187,6 @@ public class Package implements Iterable<Crate> {
 	}
 	
 	private synchronized void modify() {
-		modCount++;
 		this.isModified = true;
 		this.isDescriptionOutdated = true;
 	}
@@ -196,6 +199,31 @@ public class Package implements Iterable<Crate> {
 		return uuid;
 	}
 	
+	public long getUniverseId() {
+		return universeId;
+	}
+	
+	public boolean isLocal() {
+		return universeId == getLocalUniverseId();
+	}
+	
+	private static long localUniverseId = 0;
+	
+	public static synchronized long getLocalUniverseId() {
+		if (localUniverseId == 0) {
+			localUniverseId = 1;
+			for (World w : Bukkit.getWorlds()) {
+				UUID uid = w.getUID();
+				localUniverseId = localUniverseId * 31 + uid.getMostSignificantBits() + uid.getLeastSignificantBits();
+			}
+			if (localUniverseId == 0) {
+				localUniverseId = ~0;
+			}
+		}
+		
+		return localUniverseId;
+	}
+	
 	public String getName() {
 		return name;
 	}
@@ -204,45 +232,91 @@ public class Package implements Iterable<Crate> {
 		this.name = name;
 	}
 	
-	public SortedMap<String, SortedSet<Crate>> getBatchMap() {
-		return batches;
-	}
-	
+	@Override
 	public synchronized int size() {
-		return size;
+		return crates.size();
 	}
 	
-	public boolean isEmpty() {
-		return size() == 0;
-	}
-	
-	public synchronized void addCrate(Crate crate) {
-		if (!getUuid().equals(crate.getPackageUuid())) {
-			throw new IllegalArgumentException("Attempted to add crate with package UUID " +
-					crate.getPackageUuid() + " to package with UUID " + getUuid());
+	@Override
+	public synchronized boolean add(Crate crate) {
+		if (crate.getPackage() != null) {
+			throw new IllegalArgumentException("Attempted to add " + crate + " to " + this
+					+ " although it is already contained in " + crate.getPackage());
 		}
 		
-		SortedSet<Crate> batch = getBatchMap().get(crate.getBatch());
-		
-		if (batch == null) {
-			batch = new TreeSet<>(Crate.INTRABATCH_DEPLOY_ORDER);
-			getBatchMap().put(crate.getBatch(), batch);
-		}
-		
+		int index = Collections.binarySearch(crates, crate, currentComparator);
 		modify();
-		batch.add(crate);
-		size++;
+		try {
+			crates.add(-index - 1, crate);
+			crate.setPackage(this);
+		} catch (IndexOutOfBoundsException e) {
+			throw new IllegalArgumentException("Attempted to add " + crate + " to " + this
+					+ ", in which it is already contained");
+		}
+		return true;
 	}
 	
-	public synchronized void removeCrate(Crate crate) {
-		SortedSet<Crate> batch = getBatchMap().get(crate.getBatch());
-		if (batch == null) {
-			throw new RuntimeException("The batch of crate " + crate + " is out of sync: batch " + crate.getBatch() + " not found");
+	@Override
+	public boolean remove(Object o) {
+		if (o instanceof Crate) {
+			return remove((Crate) o);
 		}
-		if (batch.remove(crate)) {
-			modify();
-			size--;
+		return false;
+	}
+	
+	public synchronized boolean remove(Crate crate) {
+		int index = Collections.binarySearch(crates, crate, currentComparator);
+		if (index < 0) {
+			return false;
 		}
+		crates.remove(index);
+		crate.setPackage(null);
+		modify();
+		return true;
+	}
+	
+	public synchronized Crate getNext() {
+		if (deployIndex >= crates.size()) return null;
+		return crates.get(deployIndex);
+	}
+	
+	public synchronized void skip() {
+		deployIndex++;
+	}
+	
+	@Override
+	public boolean contains(Object o) {
+		if (o instanceof Crate) {
+			return this == ((Crate) o).getPackage();
+		}
+		
+		return false;
+	}
+	
+	public synchronized void sort(String sorter) {
+		if (Objects.equals(this.sorter, sorter)) {
+			return;
+		}
+		
+		this.sorter = sorter;
+		if (sorter == null) {
+			final Matcher matcher = Pattern.compile(sorter, Pattern.UNICODE_CASE).matcher("");
+			currentComparator =
+					Comparator.comparing(
+							(Function<Crate, Boolean>)
+							crate -> 
+							matcher.reset(crate.getBatch()).matches())
+					.thenComparing(Crate.TOTAL_DEPLOY_ORDER);
+		} else {
+			currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+		}
+		
+		crates.sort(currentComparator);
+		deployIndex = 0;
+	}
+	
+	public String getSorter() {
+		return sorter;
 	}
 	
 	public Set<String> getOwners() {
@@ -281,64 +355,28 @@ public class Package implements Iterable<Crate> {
 
 	@Override
 	public Iterator<Crate> iterator() {
-		return new Iterator<Crate>() {
-			
-			private final Iterator<? extends Iterable<Crate>> superIterator = getBatchMap().values().iterator();
-			private Iterator<Crate> currentBatch = null;
-			private Crate nextCrate = null;
-			
-			private final int expectedModCount = modCount;
-
-			@Override
-			public boolean hasNext() {
-				checkComodification();
-				pullNextCrate();
-				return nextCrate != null;
-			}
-
-			@Override
-			public Crate next() {
-				checkComodification();
-				if (!hasNext()) throw new NoSuchElementException();
-				Crate result = nextCrate;
-				nextCrate = null;
-				return result;
-			}
-
-			private void checkComodification() {
-				if (expectedModCount != modCount) {
-					throw new ConcurrentModificationException("Package " + Package.this + " has been modified since this iterator was created");
-				}
-			}
-
-			private void pullNextCrate() {
-				while (nextCrate == null) {
-					while (currentBatch == null) {
-						if (!superIterator.hasNext()) {
-							return;
-						}
-						
-						currentBatch = superIterator.next().iterator();
-					}
-					
-					if (currentBatch.hasNext()) {
-						nextCrate = null;
-					} else {
-						currentBatch = null;
-					}
-				}
-			}
-			
-		};
+		return crates.iterator();
 	}
 	
+	@Override
+	public Spliterator<Crate> spliterator() {
+		return Spliterators.spliteratorUnknownSize(iterator(),
+				Spliterator.DISTINCT | Spliterator.NONNULL | Spliterator.ORDERED);
+	}
+	
+	@Override
 	public Stream<Crate> stream() {
-		return SyncStreams.synchronizedStream(StreamSupport.stream(this::spliterator, 0, false), this);
+		return SyncStreams.synchronizedStream(
+				StreamSupport.stream(
+						this::spliterator,
+						Spliterator.DISTINCT | Spliterator.NONNULL | Spliterator.ORDERED,
+						false),
+				this);
 	}
 	
 	@Override
 	public synchronized void forEach(Consumer<? super Crate> action) {
-		Iterable.super.forEach(action);
+		super.forEach(action);
 	}
 	
 	public VrataUser getCurrentUser() {
@@ -367,7 +405,7 @@ public class Package implements Iterable<Crate> {
 
 	@Override
 	public String toString() {
-		return "P-" + getUuid().toString().substring(0, 6);
+		return "P" + getUuid().toString().substring(0, 6) + (isLocal() ? "-L" : "-R");
 	}
 
 }

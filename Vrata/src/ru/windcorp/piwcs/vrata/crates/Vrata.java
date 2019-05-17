@@ -25,10 +25,14 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.BlockState;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import ru.windcorp.piwcs.nestedcmd.NCComplaintException;
@@ -47,7 +51,7 @@ public class Vrata {
 		ASTRAL = tmp;
 	}
 
-	public static Crate importContainer(Player player, Package pkg) throws VrataOperationException {
+	public static Crate importContainer(Player player) throws VrataOperationException {
 		Crate crate;
 		
 		if (player.getOpenInventory().getType() == InventoryType.CRAFTING) {
@@ -77,7 +81,7 @@ public class Vrata {
 				}
 			}
 			
-			crate = Crate.createNew(pkg, nbtData.toByteArray(), slots, description.toString());
+			crate = Crate.createNew(nbtData.toByteArray(), slots, description.toString());
 		} catch (VrataOperationException e) {
 			throw e;
 		} catch (Exception e) {
@@ -131,6 +135,27 @@ public class Vrata {
 
 	private static String getDescriptionFor(ItemStack stack) {
 		return stack.toString();
+	}
+	
+	public static String describeInventory(Inventory inv, Player backupData) {
+		InventoryHolder holder = inv.getHolder();
+		if (holder == null) {
+			Location loc = backupData.getLocation();
+			return "(no data, around " + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ();
+		} else if (holder instanceof BlockState) {
+			BlockState blockState = (BlockState) holder;
+			return "Block[" + blockState.getData() + "@" + blockState.getX() + " " + blockState.getY() + " " + blockState.getZ() + "]";
+		} else if (holder instanceof Entity) {
+			Entity entity = (Entity) holder;
+			Location loc = entity.getLocation();
+			return "Entity[" + entity.getType() + ":" + entity.getEntityId()+ "@" + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ() + "]";
+		} else {
+			return "Unknown[" + holder + "]";
+		}
+	}
+	
+	public static boolean isAContainer(Inventory inv) {
+		return true;
 	}
 
 }
