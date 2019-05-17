@@ -158,7 +158,7 @@ public class VrataDeployer implements VrataPlayerHandler {
 	@Override
 	public void onUnregistered() {
 		user.getCurrentPackage().sort(null);
-		user.sendMessage(get("cmd.pack.stopped"));
+		user.sendMessage(get("cmd.deploy.stopped"));
 	}
 
 }
