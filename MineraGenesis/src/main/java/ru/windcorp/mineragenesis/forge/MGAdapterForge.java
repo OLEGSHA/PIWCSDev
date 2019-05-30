@@ -18,6 +18,7 @@ import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.gameevent.TickEvent.ServerTickEvent;
+import net.minecraft.server.management.PlayerManager;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -188,8 +189,27 @@ public class MGAdapterForge {
 		
 		chunk.setStorageArrays(request.getData());
 		chunk.setChunkModified();
+		markChunkForSending(chunk);
 	}
 	
+	private static void markChunkForSending(Chunk chunk) {
+		PlayerManager manager = ((WorldServer) chunk.worldObj).getPlayerManager();
+		
+		int startX = chunk.xPosition << 4, startZ = chunk.zPosition << 4;
+		int updates = 0;
+		
+		for (int x = startX; x < startX + ChunkData.CHUNK_SIZE; ++x) {
+			for (int z = startZ; z < startZ + ChunkData.CHUNK_SIZE; ++z) {
+				for (int y = 0; y < ChunkData.CHUNK_HEIGHT; y += 8) {
+					manager.markBlockForUpdate(x, y, z);
+					if (++updates >= net.minecraftforge.common.ForgeModContainer.clumpingThreshold) {
+						return;
+					}
+				}
+			}
+		}
+	}
+
 	private static Chunk findChunk(ChunkLocator locator) {
 		return DimensionManager.getWorld(locator.dimension)
 				.getChunkFromChunkCoords(locator.chunkX, locator.chunkZ);
