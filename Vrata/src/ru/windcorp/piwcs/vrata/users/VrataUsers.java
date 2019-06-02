@@ -104,7 +104,7 @@ public class VrataUsers {
 			if (sender instanceof Player) {
 				user = new VrataUser(sender, getPlayerProfile(sender.getName()));
 			} else {
-				user = new VrataUser(sender, new VrataUserProfile(sender.getName(), VrataUserProfile.Status.NON_PLAYER));
+				user = new VrataUser(sender, new VrataUserProfile(sender.getName().toLowerCase(), VrataUserProfile.Status.NON_PLAYER));
 			}
 			USERS.put(sender, user);
 		}

@@ -141,8 +141,9 @@ public class Vrata {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	private static String getDescriptionFor(ItemStack stack) {
-		return stack.toString().substring("ItemStack".length());
+		return stack.getTypeId() + ":" + stack.getDurability() + " " + stack.toString().substring("ItemStack".length());
 	}
 	
 	public static String describeInventory(Inventory inv, Player backupData) {

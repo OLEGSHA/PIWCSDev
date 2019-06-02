@@ -44,6 +44,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.users.VrataUser;
+import ru.windcorp.piwcs.vrata.users.VrataUsers;
 import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Package extends AbstractSet<Crate> {
@@ -72,8 +73,9 @@ public class Package extends AbstractSet<Crate> {
 		this.universeId = universeId;
 		this.name = name;
 		
-		this.file = Packages.getSaveDirectory().resolve(escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
-		this.descFile = Packages.getSaveDirectory().resolve(escapeFileUnsafes(name) + "__" + uuid.toString() + ".desc.txt");
+		String fileName = escapeFileUnsafes(name) + "__" + uuid.toString();
+		this.file = Packages.getSaveDirectory().resolve(fileName + ".package");
+		this.descFile = Packages.getSaveDirectory().resolve(fileName + ".desc.txt");
 		
 		Packages.registerPackage(this);
 	}
@@ -151,9 +153,17 @@ public class Package extends AbstractSet<Crate> {
 	
 	public synchronized void saveDescriptions(Writer output) throws IOException {
 		output.write(this.toString());
-		output.write(" | ");
+		
+		output.write("\nOwners: {");
+		for (String owner : getOwners()) {
+			output.write("\n\t");
+			output.write(owner);
+		}
+		output.write("\n}\n\n");
+		
 		output.write(Integer.toString(size()));
 		output.write(" crates total\n\n");
+		
 		for (Crate crate : this) {
 			output.write(String.valueOf(crate.getBatch()));
 			output.write(": ");
@@ -327,7 +337,7 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public synchronized void addOwner(String player) {
-		if (getOwners().add(player)) modify();
+		if (getOwners().add(player.toLowerCase())) modify();
 	}
 	
 	public synchronized boolean removeOwner(String player) {
@@ -341,7 +351,7 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public boolean isOwner(Player player) {
-		return isOwner(player.getName());
+		return isOwner(VrataUsers.getUser(player));
 	}
 	
 	public boolean isOwner(String name) {

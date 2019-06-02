@@ -100,7 +100,10 @@ public class VrataPacker implements VrataPlayerHandler {
 	}
 	
 	private void setBatch(String input) {
-		if (input.equalsIgnoreCase("X") || input.equalsIgnoreCase(get("untitledBatch")) || input.equalsIgnoreCase("null")) {
+		if (input == null
+				|| input.equalsIgnoreCase("X")
+				|| input.equalsIgnoreCase(get("untitledBatch"))
+				|| input.equalsIgnoreCase("null")) {
 			this.batch = null;
 		} else {
 			this.batch = input;
