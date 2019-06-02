@@ -21,6 +21,7 @@ package ru.windcorp.piwcs.vrata.users;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -35,6 +36,7 @@ import java.util.WeakHashMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import ru.windcorp.piwcs.vrata.VrataLogger;
 import ru.windcorp.piwcs.vrata.VrataPlugin;
 
 public class VrataUsers {
@@ -60,6 +62,9 @@ public class VrataUsers {
 			loadedSuccessfully = true;
 		} catch (NoSuchElementException e) {
 			throw new IOException("User profile database is corrupted", e);
+		} catch (FileNotFoundException e) {
+			VrataLogger.write("Loaded blank user database");
+			loadedSuccessfully = true;
 		}
 	}
 	

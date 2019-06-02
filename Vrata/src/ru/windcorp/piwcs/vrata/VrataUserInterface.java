@@ -75,11 +75,11 @@ public class VrataUserInterface {
 
 	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {
 		if (oldPkg == null) {
-			write("User %s selected package %s", user, newPkg);
+			write("%s selected package %s", user, newPkg);
 		} else if (newPkg == null) {
-			write("User %s deselected package %s", user, oldPkg);
+			write("%s deselected package %s", user, oldPkg);
 		} else {
-			write("User %s changed selected package from %s to %s", user, oldPkg, newPkg);
+			write("%s changed selected package from %s to %s", user, oldPkg, newPkg);
 		}
 	}
 

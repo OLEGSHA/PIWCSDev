@@ -26,6 +26,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 
 @SuppressWarnings("static-method")
@@ -33,11 +35,9 @@ public class VrataListener implements Listener {
 	
 	public static interface VrataPlayerHandler {
 
-		default boolean onChat(String message) {
-			return false;
-		}
+		String onChat(String message);
 		
-		void onInventoryOpened(Inventory inventory);
+		boolean onInventoryOpened(Inventory inventory);
 		void onUnregistered();
 		
 	}
@@ -54,7 +54,12 @@ public class VrataListener implements Listener {
 		synchronized (HANDLERS) {
 			VrataPlayerHandler handler = HANDLERS.get(e.getPlayer());
 			if (handler != null) {
-				handler.onChat(e.getMessage());
+				String msg = handler.onChat(e.getMessage());
+				if (msg == null) {
+					e.setCancelled(true);
+				} else if (msg != e.getMessage()) {
+					e.setMessage(msg);
+				}
 			}
 		}
 	}
@@ -68,8 +73,27 @@ public class VrataListener implements Listener {
 		synchronized (HANDLERS) {
 			VrataPlayerHandler handler = HANDLERS.get(e.getPlayer());
 			if (handler != null) {
-				handler.onInventoryOpened(e.getInventory());
+				e.setCancelled(handler.onInventoryOpened(e.getInventory()));
 			}
+		}
+	}
+	
+	@EventHandler
+	public void onPlayerQuit(PlayerQuitEvent e) {
+		unregisterHandler(e.getPlayer());
+	}
+	
+	@EventHandler
+	public void onPlayerKicked(PlayerKickEvent e) {
+		unregisterHandler(e.getPlayer());
+	}
+	
+	public static void onStopping() {
+		synchronized (HANDLERS) {
+			for (VrataPlayerHandler handler : HANDLERS.values()) {
+				handler.onUnregistered();
+			}
+			HANDLERS.clear();
 		}
 	}
 	

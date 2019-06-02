@@ -36,9 +36,6 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -59,7 +56,7 @@ public class Package extends AbstractSet<Crate> {
 	private final List<Crate> crates = new ArrayList<>();
 	
 	private String sorter = null;
-	private Comparator<? super Crate> currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+	private Comparator<? super Crate> currentComparator = CrateComparator.NULL_SORTER;
 	private int deployIndex = 0;
 	
 	private final File file;
@@ -153,8 +150,12 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public synchronized void saveDescriptions(Writer output) throws IOException {
+		output.write(this.toString());
+		output.write(" | ");
+		output.write(Integer.toString(size()));
+		output.write(" crates total\n\n");
 		for (Crate crate : this) {
-			output.write(crate.getBatch());
+			output.write(String.valueOf(crate.getBatch()));
 			output.write(": ");
 			output.write(crate.getUuid().toString());
 			output.write(" {\n");
@@ -270,7 +271,6 @@ public class Package extends AbstractSet<Crate> {
 			return false;
 		}
 		crates.remove(index);
-		crate.setPackage(null);
 		modify();
 		return true;
 	}
@@ -295,20 +295,15 @@ public class Package extends AbstractSet<Crate> {
 	
 	public synchronized void sort(String sorter) {
 		if (Objects.equals(this.sorter, sorter)) {
+			deployIndex = 0;
 			return;
 		}
 		
 		this.sorter = sorter;
-		if (sorter == null) {
-			final Matcher matcher = Pattern.compile(sorter, Pattern.UNICODE_CASE).matcher("");
-			currentComparator =
-					Comparator.comparing(
-							(Function<Crate, Boolean>)
-							crate -> 
-							matcher.reset(crate.getBatch()).matches())
-					.thenComparing(Crate.TOTAL_DEPLOY_ORDER);
+		if (sorter != null) {
+			currentComparator = new CrateComparator(sorter);
 		} else {
-			currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+			currentComparator = CrateComparator.NULL_SORTER;
 		}
 		
 		crates.sort(currentComparator);
@@ -405,7 +400,7 @@ public class Package extends AbstractSet<Crate> {
 
 	@Override
 	public String toString() {
-		return "P" + getUuid().toString().substring(0, 6) + (isLocal() ? "-L" : "-R");
+		return "P-" + getName() + "-" + getUuid().toString().substring(0, 6) + (isLocal() ? "-L" : "-R");
 	}
 
 }

@@ -77,15 +77,15 @@ public class VrataCommandHandler implements CommandExecutor {
 						VrataCommandHandler::cmdNew,
 						null),
 				
-				new SubCommand(
-						new String[] {"select", "sel"},
+				new SubCommand(// TODO: add option to display current selection
+						new String[] {"select", "sel"},// TODO: BUG ignores duplicates
 						get("cmd.select.desc"), get("cmd.select.syntax"),
 						VrataCommandHandler::cmdSelect,
 						null),
 				
 				new SubCommand(
 						StringUtil.allCombinations(
-								new String[] {"remove", "delete", "rem", "del"},
+								new String[] {"remove", "delete", "rem", "del", "rm"},
 								new String[] {"Package", "Pkg"}),
 						get("cmd.removePackage.desc"), "",
 						checkPackageSelected.then(VrataCommandHandler::cmdRemovePackage),
@@ -96,11 +96,11 @@ public class VrataCommandHandler implements CommandExecutor {
 								new String[] {"list", "view"},
 								new String[] {"Package", "Pkg"},
 								new String[] {"s", ""}),
-						get("cmd.listPackages.desc"), "",
+						get("cmd.listPackages.desc"), "",//TODO: BUG does not display anything
 						VrataCommandHandler::cmdListPackages,
 						null),
 				
-				new SubCommand(
+				new SubCommand(// TODO: make changing batch possible
 						"pack",
 						get("cmd.pack.desc"), get("cmd.pack.syntax"),
 						checkPackageSelected.then(VrataCommandHandler::cmdPack),
@@ -112,10 +112,21 @@ public class VrataCommandHandler implements CommandExecutor {
 						checkPackageSelected.then(VrataCommandHandler::cmdDeploy),
 						isPlayer),
 				
-				new SubCommand("stop",
+				new SubCommand(
+						"stop",
 						get("cmd.stop.desc"), "",
 						VrataCommandHandler::cmdStop,
-						isPlayer)
+						isPlayer),
+				
+				new SubCommand(
+						new String[] {"info", "view"},
+						get("cmd.info.desc"), "",
+						checkPackageSelected.then(VrataCommandHandler::cmdInfo),
+						null)
+				
+				// TODO: CMD user status control
+				// TODO: CMD moderation
+				// TODO: CMD force save
 				
 				);
 	}
@@ -125,7 +136,10 @@ public class VrataCommandHandler implements CommandExecutor {
 		List<String> args = new LinkedList<>();
 		for (String arg : argsAsArray) args.add(arg);
 		
-		VrataLogger.write("%s issued command %s", sender, StringUtil.arrayToString(argsAsArray, " "));
+		StringBuilder sb = new StringBuilder(label);
+		for (String arg : argsAsArray) sb.append(" ").append(arg);
+		
+		VrataLogger.write("%s issued command /%s", sender.getName(), sb.toString());
 		
 		rootCommand.run(sender, args, label);
 		return true;
@@ -151,7 +165,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		owners.forEach(owner -> VrataUserInterface.addPackageOwner(pkg, owner));
 		VrataUserInterface.selectPackage(pkg, VrataUsers.getUser(sender));
 		
-		sender.sendMessage(getf("cmd.new.success", pkg, pkg.getUuid()));
+		sender.sendMessage(getf("cmd.new.success", pkg));
 	}
 	
 	private static void cmdSelect(CommandSender sender, List<String> args, String fullCommand)
@@ -218,7 +232,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		}
 		
 		VrataUserInterface.selectPackage(pkg, user);
-		user.sendMessage(get("cmd.select.success.select"));
+		user.sendMessage(getf("cmd.select.success.select", pkg));
 	}
 	
 	private static void cmdRemovePackage(CommandSender sender, List<String> args, String fullCommand)
@@ -228,7 +242,7 @@ public class VrataCommandHandler implements CommandExecutor {
 			throw new NCSyntaxException(getf("cmd.removePackage.problem.args", pkg));
 		}
 		VrataUserInterface.removePackage(pkg);
-		sender.sendMessage(getf("cmd.removePackage.success"));
+		sender.sendMessage(getf("cmd.removePackage.success", pkg));
 	}
 	
 	private static void cmdListPackages(CommandSender sender, List<String> args, String fullCommand)
@@ -236,8 +250,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		
 		VrataUser user = VrataUsers.getUser(sender);
 		Collection<Package> pkgs = Packages.packages()
-				.filter(p -> p.getOwners()
-				.contains(user.getProfile().getName()))
+				.filter(p -> p.getOwners().contains(user.getProfile().getName()))
 				.collect(Collectors.toList());
 		
 		if (pkgs.isEmpty()) {
@@ -274,6 +287,35 @@ public class VrataCommandHandler implements CommandExecutor {
 		if (!VrataListener.unregisterHandler(VrataUsers.getUser(sender).getPlayer())) {
 			sender.sendMessage(get("cmd.stop.problem.nothingToStop"));
 		}
+	}
+	
+	private static void cmdInfo(CommandSender sender, List<String> args, String fullCommand) {
+		VrataUser user = getUser(sender);
+		Package pkg = user.getCurrentPackage();
+		synchronized (pkg) {
+			user.sendMessage(getf("cmd.info.header",
+					pkg.getName(),
+					pkg.toString(),
+					pkg.getUuid().toString(),
+					StringUtil.iterableToString(pkg.getOwners(), ", ")));
+		
+			int pkgSize = pkg.size();
+			switch (pkg.size()) {
+			case 0:
+				user.sendMessage(get("cmd.info.empty"));
+				return;
+			case 1:
+				user.sendMessage(get("cmd.info.single"));
+				user.sendMessage(getf("cmd.info.crates", pkg.iterator().next()));
+				return;
+			default:
+				user.sendMessage(getf("cmd.info.multiple", pkgSize));
+				user.sendMessage(getf("cmd.info.crates", StringUtil.iterableToString(pkg, " ")));
+				return;
+			}
+		}
+		
+		
 	}
 	
 	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {

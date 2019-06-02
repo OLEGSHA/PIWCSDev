@@ -26,6 +26,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -67,11 +68,13 @@ public class Packages {
 	}
 	
 	public static boolean removePackage(Package pkg) {
-		pkg.setCurrentUser(null);
+		pkg.setCurrentUser(null);// TODO delete files
 		return !PACKAGES.remove(pkg.getUuid(), pkg);
 	}
 	
 	public static void load() throws IOException {
+		getSaveDirectory().mkdirs();
+		
 		for (File file : getSaveDirectory().listFiles((FileFilter)
 				file -> file.isFile() && file.getName().endsWith(".package")
 				)) {
@@ -82,12 +85,18 @@ public class Packages {
 	}
 
 	public static void save() throws IOException {
-		for (Package pkg : PACKAGES.values()) {
-			if (pkg.needsSaving()) {
-				pkg.save(new DataOutputStream(new FileOutputStream(pkg.getFile())));
-			}
-			if (pkg.needsDescriptionRewrite()) {
-				pkg.saveDescriptions(new OutputStreamWriter(new FileOutputStream(pkg.getFile()), StandardCharsets.UTF_8));
+		synchronized (PACKAGES) {
+			for (Package pkg : PACKAGES.values()) {
+				if (pkg.needsSaving()) {
+					try (DataOutputStream output = new DataOutputStream(new FileOutputStream(pkg.getFile()))) {
+						pkg.save(output);
+					}
+				}
+				if (pkg.needsDescriptionRewrite()) {
+					try (Writer jkRowling = new OutputStreamWriter(new FileOutputStream(pkg.getDescriptionFile()), StandardCharsets.UTF_8)) {
+						pkg.saveDescriptions(jkRowling);
+					}
+				}
 			}
 		}
 	}

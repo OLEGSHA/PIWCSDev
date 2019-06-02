@@ -29,7 +29,7 @@ public class VrataTemplates {
 	private static final Map<String, String> MAP = new HashMap<>();
 	
 	public static void load() throws FileNotFoundException {
-		try (Scanner scanner = new Scanner(new File(VrataPlugin.getInst().getDataFolder(), "templates.cfg"))) {
+		try (Scanner scanner = new Scanner(new File(VrataPlugin.getInst().getDataFolder(), "templates.cfg"), "UTF8")) {
 			while (scanner.hasNext()) {
 				MAP.put(scanner.next(), translateAlternateColorCodes('&', scanner.nextLine().trim().replace('^', '\n')));
 			}
@@ -48,7 +48,7 @@ public class VrataTemplates {
 	}
 	
 	public static String get(String key) {
-		return MAP.get(key);
+		return MAP.getOrDefault(key, "null");
 	}
 	
 	public static String getf(String key, Object... args) {

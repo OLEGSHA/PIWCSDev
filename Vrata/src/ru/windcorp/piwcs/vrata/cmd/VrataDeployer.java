@@ -56,14 +56,14 @@ public class VrataDeployer implements VrataPlayerHandler {
 	}
 	
 	@Override
-	public void onInventoryOpened(Inventory inventory) {
-		if (!Vrata.isAContainer(inventory)) return;
+	public boolean onInventoryOpened(Inventory inventory) {
+		if (!Vrata.isAContainer(inventory)) return false;
 		
 		Package pkg = user.getCurrentPackage();
 		Crate crate = pkg.getNext();
 		
 		try {
-			Vrata.exportContainer(user.getPlayer(), crate);
+			Vrata.exportContainer(inventory, crate);
 			pkg.remove(crate);
 		} catch (VrataOperationException e) {
 			user.sendMessage(getf("cmd.deploy.problem.exception", e.getMessage(), String.valueOf(e.getCause())));
@@ -74,7 +74,7 @@ public class VrataDeployer implements VrataPlayerHandler {
 			e.printStackTrace();
 		} catch (NCComplaintException e) {
 			user.sendMessage(e.getMessage());
-			return;
+			return false;
 		}
 
 		user.sendMessage(getf("cmd.deploy.deployed"));
@@ -85,6 +85,8 @@ public class VrataDeployer implements VrataPlayerHandler {
 				Vrata.describeInventory(inventory, user.getPlayer()));
 		
 		selectAndDisplayNextCrate();
+		
+		return false;
 	}
 	
 	private void selectAndDisplayNextCrate() {
@@ -121,9 +123,9 @@ public class VrataDeployer implements VrataPlayerHandler {
 	}
 	
 	@Override
-	public boolean onChat(String message) {
+	public String onChat(String message) {
 		if (message.startsWith("!")) {
-			return false;
+			return message.substring("!".length());
 		}
 		
 		if ("$info".equalsIgnoreCase(message)) {
@@ -134,7 +136,7 @@ public class VrataDeployer implements VrataPlayerHandler {
 					crate.getUuid(),
 					crate.getPackage(),
 					crate.getPackageUuid(),
-					crate.getCreationTime()));
+					crate.getCreationTime().toEpochMilli()));
 		} else if ("$skip".equalsIgnoreCase(message)) {
 			user.getCurrentPackage().skip();
 			selectAndDisplayNextCrate();
@@ -152,7 +154,7 @@ public class VrataDeployer implements VrataPlayerHandler {
 			selectAndDisplayNextCrate();
 		}
 		
-		return true;
+		return null;
 	}
 
 	@Override

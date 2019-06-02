@@ -69,7 +69,7 @@ public class VrataPlugin extends JavaPlugin {
 		
 		Packages.setSaveDirectory(new File(getDataFolder(), "packages"));
 		try {
-			Packages.load();
+			Packages.load();// TODO: log load results
 		} catch (IOException e) {
 			e.printStackTrace();
 			disable("Could not load packages");
@@ -80,9 +80,10 @@ public class VrataPlugin extends JavaPlugin {
 		getCommand("vrata").setExecutor(new VrataCommandHandler());
 	}
 	
-	
 	@Override
 	public void onDisable() {
+		VrataListener.onStopping();
+		
 		try {
 			VrataUsers.save();
 		} catch (IOException e) {
