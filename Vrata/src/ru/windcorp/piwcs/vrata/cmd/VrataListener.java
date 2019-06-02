@@ -30,6 +30,9 @@ import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 
+import ru.windcorp.piwcs.vrata.VrataUserInterface;
+import ru.windcorp.piwcs.vrata.users.VrataUsers;
+
 @SuppressWarnings("static-method")
 public class VrataListener implements Listener {
 	
@@ -80,12 +83,12 @@ public class VrataListener implements Listener {
 	
 	@EventHandler
 	public void onPlayerQuit(PlayerQuitEvent e) {
-		unregisterHandler(e.getPlayer());
+		VrataUserInterface.onPlayerQuitting(VrataUsers.getUser(e.getPlayer()));
 	}
 	
 	@EventHandler
 	public void onPlayerKicked(PlayerKickEvent e) {
-		unregisterHandler(e.getPlayer());
+		VrataUserInterface.onPlayerQuitting(VrataUsers.getUser(e.getPlayer()));
 	}
 	
 	public static void onStopping() {

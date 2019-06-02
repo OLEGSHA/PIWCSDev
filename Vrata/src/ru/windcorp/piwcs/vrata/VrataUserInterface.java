@@ -19,6 +19,7 @@
 package ru.windcorp.piwcs.vrata;
 
 import ru.windcorp.piwcs.nestedcmd.*;
+import ru.windcorp.piwcs.vrata.cmd.VrataListener;
 import ru.windcorp.piwcs.vrata.crates.*;
 import ru.windcorp.piwcs.vrata.crates.Package;
 import ru.windcorp.piwcs.vrata.exceptions.*;
@@ -83,6 +84,14 @@ public class VrataUserInterface {
 		}
 
 		Packages.attemptSave();
+	}
+	
+	public static void onPlayerQuitting(VrataUser user) {
+		VrataListener.unregisterHandler(user.getPlayer());
+		
+		try {
+			selectPackage(null, user);
+		} catch (VrataPermissionException impossible) {}
 	}
 
 }
