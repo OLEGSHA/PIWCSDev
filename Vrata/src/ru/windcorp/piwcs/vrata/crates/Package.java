@@ -20,9 +20,9 @@ package ru.windcorp.piwcs.vrata.crates;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,8 +59,8 @@ public class Package extends AbstractSet<Crate> {
 	private Comparator<? super Crate> currentComparator = CrateComparator.NULL_SORTER;
 	private int deployIndex = 0;
 	
-	private final File file;
-	private final File descFile;
+	private final Path file;
+	private final Path descFile;
 	
 	private VrataUser currentUser = null;
 	
@@ -72,8 +72,8 @@ public class Package extends AbstractSet<Crate> {
 		this.universeId = universeId;
 		this.name = name;
 		
-		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
-		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".desc.txt");
+		this.file = Packages.getSaveDirectory().resolve(escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
+		this.descFile = Packages.getSaveDirectory().resolve(escapeFileUnsafes(name) + "__" + uuid.toString() + ".desc.txt");
 		
 		Packages.registerPackage(this);
 	}
@@ -390,11 +390,11 @@ public class Package extends AbstractSet<Crate> {
 		}
 	}
 
-	public File getFile() {
+	public Path getFile() {
 		return file;
 	}
 	
-	public File getDescriptionFile() {
+	public Path getDescriptionFile() {
 		return descFile;
 	}
 

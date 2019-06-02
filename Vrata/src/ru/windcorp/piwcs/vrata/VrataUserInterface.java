@@ -81,6 +81,8 @@ public class VrataUserInterface {
 		} else {
 			write("%s changed selected package from %s to %s", user, oldPkg, newPkg);
 		}
+
+		Packages.attemptSave();
 	}
 
 }
