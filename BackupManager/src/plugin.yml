@@ -1,0 +1,7 @@
+name: PBM
+version: 1.0
+description: PIWCS Backup Manager
+author: Javapony
+
+main: ru.windcorp.piwcs.pbm.PBMPlugin
+  
