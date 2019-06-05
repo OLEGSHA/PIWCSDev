@@ -18,37 +18,29 @@
 
 package ru.windcorp.piwcs.vrata;
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+
+import org.bukkit.ChatColor;
 
 public class VrataTemplates {
 	
 	private static final Map<String, String> MAP = new HashMap<>();
 	
-	public static void load() throws FileNotFoundException {
-		try (Scanner scanner = new Scanner(new File(VrataPlugin.getInst().getDataFolder(), "templates.cfg"))) {
+	public static void load() throws IOException {
+		try (Scanner scanner = new Scanner(Files.newBufferedReader(VrataPlugin.getDataPath("templates.cfg"), StandardCharsets.UTF_8))) {
 			while (scanner.hasNext()) {
-				MAP.put(scanner.next(), translateAlternateColorCodes('&', scanner.nextLine().trim().replace('^', '\n')));
+				MAP.put(scanner.next(), ChatColor.translateAlternateColorCodes('&', scanner.nextLine().trim().replace('^', '\n')));
 			}
 		}
 	}
 	
-	private static String translateAlternateColorCodes(char altColorChar, String textToTranslate) {
-		char[] b = textToTranslate.toCharArray();
-        for (int i = 0; i < b.length - 1; i++) {
-            if (b[i] == altColorChar && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(b[i+1]) > -1) {
-                b[i] = '\u00a7';
-                b[i+1] = Character.toLowerCase(b[i+1]);
-            }
-        }
-        return new String(b);
-	}
-	
 	public static String get(String key) {
-		return MAP.get(key);
+		return MAP.getOrDefault(key, "!MISSING!");
 	}
 	
 	public static String getf(String key, Object... args) {

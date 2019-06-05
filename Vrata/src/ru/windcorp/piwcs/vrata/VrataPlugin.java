@@ -18,9 +18,8 @@
 
 package ru.windcorp.piwcs.vrata;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -41,6 +40,10 @@ public class VrataPlugin extends JavaPlugin {
 		return inst;
 	}
 	
+	public static Path getDataPath(String name) {
+		return getInst().getDataFolder().toPath().resolve(name);
+	}
+	
 	@Override
 	public void onLoad() {
 		inst = this;
@@ -48,12 +51,11 @@ public class VrataPlugin extends JavaPlugin {
 	
 	@Override
 	public void onEnable() {
-		VrataLogger.setLogDirectory(new File(getDataFolder(), "logs"));
 		VrataLogger.setup();
 		
 		try {
 			VrataTemplates.load();
-		} catch (FileNotFoundException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			disable("Could not load message templates");
 			return;
@@ -67,7 +69,6 @@ public class VrataPlugin extends JavaPlugin {
 			return;
 		}
 		
-		Packages.setSaveDirectory(new File(getDataFolder(), "packages"));
 		try {
 			Packages.load();
 		} catch (IOException e) {
@@ -80,9 +81,14 @@ public class VrataPlugin extends JavaPlugin {
 		getCommand("vrata").setExecutor(new VrataCommandHandler());
 	}
 	
-	
 	@Override
 	public void onDisable() {
+		VrataListener.onStopping();
+		save();
+		VrataLogger.terminate();
+	}
+	
+	public static void save() {
 		try {
 			VrataUsers.save();
 		} catch (IOException e) {
@@ -93,8 +99,6 @@ public class VrataPlugin extends JavaPlugin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		VrataLogger.terminate();
 	}
 	
 	public static void disable(String message) {

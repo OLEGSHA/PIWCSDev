@@ -26,18 +26,14 @@ import java.util.Scanner;
 public class VrataUserProfile {
 	
 	public static enum Status {
-		NON_PLAYER,
-		ADMIN,
+		USER,
 		MODERATOR,
-		USER
+		ADMIN,
+		NON_PLAYER
 	}
 	
 	private final String name;
 	private Status status;
-	
-//	public VrataUserProfile(String name) {
-//		this(name, false, false);
-//	}
 	
 	protected VrataUserProfile(String name, Status status) {
 		this.name = name;

@@ -34,18 +34,14 @@ public class VrataAstralMedium implements VrataAstralInterface {
 //		CraftItemStack.asNMSCopy(itemStack).writeToNBT(nbtTagCompound);
 		CraftItemStack.asNMSCopy(itemStack).b         (nbtTagCompound);
 		
-//		nbtTagCompound.write(output);
-		nbtTagCompound.a    (output);
+//		CompressedStreamTools.write(nbtTagCompound, output);
+		du                   .a    (nbtTagCompound, output);
 	}
 	
 	@Override
 	public org.bukkit.inventory.ItemStack readItemStack(DataInput input) {
-//		NBTTagCompound nbtTagCompound = new NBTTagCompound();
-		dh             nbtTagCompound = new dh();
-		
-		// 0 means we are not recursing (yet)
-//		nbtTagCompound.read(input, 0, NBTSizeTracker.DO_NOT_TRACK);
-		nbtTagCompound.a   (input, 0, ds            .a           );
+//		NBTTagCompound nbtTagCompound = CompressedStreamTools.read(input, NBTSizeTracker.DO_NOT_TRACK);
+		dh             nbtTagCompound = du                   .a   (input, ds            .a           );
 		
 //		return CraftItemStack.asBukkitCopy(net.minecraft.inventory.ItemStack.loadItemStackFromNBT(nbtTagCompound));
 		return CraftItemStack.asBukkitCopy(add                              .a                   (nbtTagCompound));

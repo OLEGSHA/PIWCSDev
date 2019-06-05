@@ -23,33 +23,12 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.UUID;
-import java.util.function.Function;
-
 import ru.windcorp.piwcs.vrata.users.VrataUser;
 
 public class Crate {
 	
 	private static final long MAGIC_NUMBER = 0xFFFF_3103_2019_FFFFl;
-	
-	public static final Comparator<Crate> INTRABATCH_DEPLOY_ORDER = Comparator.comparing(crate -> crate.getCreationTime());
-	public static final Comparator<Crate> TOTAL_DEPLOY_ORDER =
-			Comparator.comparing(
-					(Function<Crate, Boolean>)
-					crate -> crate.isModerated()
-					)
-			.thenComparing(
-					Comparator.nullsLast(
-							Comparator.comparing(
-									(Function<Crate, String>)
-									crate -> crate.getBatch()
-									)
-							)
-					)
-			.thenComparing(
-					INTRABATCH_DEPLOY_ORDER
-					);
 	
 	private final UUID uuid;
 	private Package pkg = null;

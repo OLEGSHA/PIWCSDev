@@ -19,22 +19,19 @@
 package ru.windcorp.piwcs.vrata.users;
 
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.WeakHashMap;
 
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import ru.windcorp.piwcs.vrata.VrataLogger;
 import ru.windcorp.piwcs.vrata.VrataPlugin;
 
 public class VrataUsers {
@@ -43,10 +40,17 @@ public class VrataUsers {
 	private static final WeakHashMap<CommandSender, VrataUser> USERS = new WeakHashMap<>();
 	private static boolean loadedSuccessfully = false;
 	
-	private static final File DATABASE_FILE = new File(VrataPlugin.getInst().getDataFolder(), "database.db");
+	private static final Path DATABASE_FILE = VrataPlugin.getDataPath("database.db");
 	
 	public static void load() throws IOException {
-		try (Scanner scanner = new Scanner(new InputStreamReader(new FileInputStream(DATABASE_FILE), StandardCharsets.UTF_8))) {
+		if (!Files.exists(DATABASE_FILE)) {
+			VrataLogger.write("Loaded blank user database");
+			VrataPlugin.getInst().getLogger().info("Loaded blank user database");
+			loadedSuccessfully = true;
+			return;
+		}
+		
+		try (Scanner scanner = new Scanner(Files.newBufferedReader(DATABASE_FILE, StandardCharsets.UTF_8))) {
 			while (scanner.hasNext()) {
 				VrataUserProfile profile = VrataUserProfile.load(scanner);
 				PROFILES.put(profile.getName(), profile);
@@ -58,7 +62,10 @@ public class VrataUsers {
 			}
 			
 			loadedSuccessfully = true;
-		} catch (NoSuchElementException e) {
+			VrataPlugin.getInst().getLogger().info("Loaded " + PROFILES.size() + " user profiles");
+		} catch (IOException e) {
+			throw e;
+		} catch (Exception e) {
 			throw new IOException("User profile database is corrupted", e);
 		}
 	}
@@ -68,11 +75,13 @@ public class VrataUsers {
 			return;
 		}
 		
-		try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(DATABASE_FILE), StandardCharsets.UTF_8))) {
+		try (BufferedWriter writer = Files.newBufferedWriter(DATABASE_FILE, StandardCharsets.UTF_8)) {
 			for (Map.Entry<String, VrataUserProfile> entry : PROFILES.entrySet()) {
 				entry.getValue().save(writer);
 			}
 		}
+		
+		VrataPlugin.getInst().getLogger().info("Saved " + PROFILES.size() + " user profiles");
 	}
 	
 	public static synchronized VrataUserProfile getPlayerProfile(String name) {
@@ -95,7 +104,7 @@ public class VrataUsers {
 			if (sender instanceof Player) {
 				user = new VrataUser(sender, getPlayerProfile(sender.getName()));
 			} else {
-				user = new VrataUser(sender, new VrataUserProfile(sender.getName(), VrataUserProfile.Status.NON_PLAYER));
+				user = new VrataUser(sender, new VrataUserProfile(sender.getName().toLowerCase(), VrataUserProfile.Status.NON_PLAYER));
 			}
 			USERS.put(sender, user);
 		}

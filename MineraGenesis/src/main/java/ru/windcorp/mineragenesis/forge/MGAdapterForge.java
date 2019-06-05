@@ -14,21 +14,17 @@
  */
 package ru.windcorp.mineragenesis.forge;
 
-import java.awt.image.BufferedImage;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
-import javax.imageio.ImageIO;
-
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.gameevent.TickEvent.ServerTickEvent;
+import net.minecraft.server.management.PlayerManager;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.chunk.NibbleArray;
+import net.minecraft.world.chunk.storage.AnvilChunkLoader;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.event.terraingen.PopulateChunkEvent;
@@ -193,8 +189,27 @@ public class MGAdapterForge {
 		
 		chunk.setStorageArrays(request.getData());
 		chunk.setChunkModified();
+		markChunkForSending(chunk);
 	}
 	
+	private static void markChunkForSending(Chunk chunk) {
+		PlayerManager manager = ((WorldServer) chunk.worldObj).getPlayerManager();
+		
+		int startX = chunk.xPosition << 4, startZ = chunk.zPosition << 4;
+		int updates = 0;
+		
+		for (int x = startX; x < startX + ChunkData.CHUNK_SIZE; ++x) {
+			for (int z = startZ; z < startZ + ChunkData.CHUNK_SIZE; ++z) {
+				for (int y = 0; y < ChunkData.CHUNK_HEIGHT; y += 8) {
+					manager.markBlockForUpdate(x, y, z);
+					if (++updates >= net.minecraftforge.common.ForgeModContainer.clumpingThreshold) {
+						return;
+					}
+				}
+			}
+		}
+	}
+
 	private static Chunk findChunk(ChunkLocator locator) {
 		return DimensionManager.getWorld(locator.dimension)
 				.getChunkFromChunkCoords(locator.chunkX, locator.chunkZ);
@@ -202,61 +217,73 @@ public class MGAdapterForge {
 	
 	@SubscribeEvent
 	public void onTick(ServerTickEvent event) {
-		if (event.phase == TickEvent.Phase.START) {
+		if (event.phase != TickEvent.Phase.END) {
 			return;
 		}
 		
 		MineraGenesis.actInServerThread();
-		
-		if (i == 200) {
-			i = 0;
-			tmp_save();
-		} else {
-			i++;
-		}
-	}
-
-	int i = 0;
-	BufferedImage img = new BufferedImage(1000, 1000, BufferedImage.TYPE_INT_RGB);
-	private void tmp_save() {
-		try {
-			ImageIO.write(img, "png", new FileOutputStream("tmp.png"));
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
 	@SubscribeEvent (priority = EventPriority.LOWEST)
 	public void onChunkFinishedPopulating(PopulateChunkEvent.Post event) {
+		AnvilChunkLoader anvilLoader =
+				(AnvilChunkLoader) (
+						((WorldServer) event.world)
+						.theChunkProviderServer
+						.currentChunkLoader
+				);
+		
+		for (int x = 0; x < 3; ++x) {
+			for (int z = 0; z < 3; ++z) {
+				populatedFlagBuffer[x][z] = UNKNOWN;
+			}
+		}
+		
 		for (int x = 0; x <= 1; ++x) {
 			for (int z = 0; z <= 1; ++z) {
-				img.setRGB(event.chunkX + x + 500, event.chunkZ + z + 500, 0xFFFFFF);
-				if (isChunkReady(event.world, event.chunkX + x, event.chunkZ + z)) {
+				if (isChunkReady(event.world, anvilLoader, event.chunkX + x, event.chunkZ + z, x, z)) {
 					MGQueues.queueImportRequest(event.world.provider.dimensionId, event.chunkX + x, event.chunkZ + z);
 				}
 			}
 		}
 	}
+	
+	private final byte[][] populatedFlagBuffer = new byte[3][3];
+	private static final byte
+			UNKNOWN = 0,
+			POPULATED = 1,
+			NOT_POPULATED = 2,
+			DOES_NOT_EXIST = 3;
 
-	private boolean isChunkReady(World world, int chunkX, int chunkZ) {
+	private boolean isChunkReady(World world, AnvilChunkLoader anvilLoader, int chunkX, int chunkZ, int bufferX, int bufferZ) {
 		IChunkProvider provider = world.getChunkProvider();
+		int currentBufferX, currentBufferZ;
+		
 		for (int x = -1; x <= 0; ++x) {
+			currentBufferX = bufferX + x + 1;
 			for (int z = -1; z <= 0; ++z) {
-				if (!provider.chunkExists(chunkX + x, chunkZ + z)) {
+				currentBufferZ = bufferZ + z + 1;
+				
+				switch (populatedFlagBuffer[currentBufferX][currentBufferZ]) {
+				case POPULATED:
+					continue;
+				case NOT_POPULATED:
+				case DOES_NOT_EXIST:
 					return false;
-				}
-				if (!provider.provideChunk(chunkX + x, chunkZ + z).isTerrainPopulated) {
-					return false;
+				case UNKNOWN:
+					if (!provider.chunkExists(chunkX + x, chunkZ + z) && !anvilLoader.chunkExists(world, chunkX + x, chunkZ + z)) {
+						populatedFlagBuffer[currentBufferX][currentBufferZ] = DOES_NOT_EXIST;
+						return false;
+					}
+					if (!provider.provideChunk(chunkX + x, chunkZ + z).isTerrainPopulated) {
+						populatedFlagBuffer[currentBufferX][currentBufferZ] = NOT_POPULATED;
+						return false;
+					}
+					populatedFlagBuffer[currentBufferX][currentBufferZ] = POPULATED;
 				}
 			}
 		}
 		
-
-		img.setRGB(chunkX + 500, chunkZ + 500, 0x44FF44);
 		return true;
 	}
 	

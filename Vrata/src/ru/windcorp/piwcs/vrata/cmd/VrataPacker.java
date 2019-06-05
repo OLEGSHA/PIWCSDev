@@ -34,32 +34,32 @@ import ru.windcorp.piwcs.vrata.VrataPlugin;
 
 public class VrataPacker implements VrataPlayerHandler {
 	
-	private final String batch;
+	private String batch = null;
 	private final VrataUser user;
 	
-	protected VrataPacker(String batch, VrataUser user) {
-		this.batch = batch;
+	protected VrataPacker(VrataUser user) {
 		this.user = user;
 	}
 	
 	public static boolean startPacking(String batch, VrataUser user) {
-		VrataPacker packer = new VrataPacker(batch, user);
+		VrataPacker packer = new VrataPacker(user);
 		if (!VrataListener.registerHandler(user.getPlayer(), packer)) {
 			return false;
 		}
-		user.sendMessage(getf("cmd.pack.intro", user.getCurrentPackage(), batch == null ? get("untitledBatch") : batch));
+		user.sendMessage(getf("cmd.pack.intro", user.getCurrentPackage()));
+		packer.setBatch(batch);
 		return true;
 	}
 	
 	@Override
-	public void onInventoryOpened(Inventory inventory) {
-		if (!Vrata.isAContainer(inventory)) return;
+	public boolean onInventoryOpened(Inventory inventory) {
+		if (!Vrata.isAContainer(inventory)) return false;
 		
 		Package pkg = user.getCurrentPackage();
 		Crate crate;
 		
 		try {
-			crate = Vrata.importContainer(user.getPlayer());
+			crate = Vrata.importContainer(inventory);
 		} catch (VrataOperationException e) {
 			user.sendMessage(getf("cmd.pack.problem.exception", e.getMessage(), String.valueOf(e.getCause())));
 			String msg = String.format("User %s attempted to pack a crate from %s but caused an exception: %s",
@@ -67,7 +67,7 @@ public class VrataPacker implements VrataPlayerHandler {
 			VrataLogger.write(msg);
 			VrataPlugin.getInst().getLogger().severe(msg);
 			e.printStackTrace();
-			return;
+			return true;
 		}
 
 		crate.setBatch(batch);
@@ -79,8 +79,36 @@ public class VrataPacker implements VrataPlayerHandler {
 				pkg, pkg.getUuid(),
 				Vrata.describeInventory(inventory, user.getPlayer()));
 		VrataLogger.writeCrate(crate);
-		user.sendMessage(getf("cmd.pack.packed", crate));
+		user.sendMessage(getf("cmd.pack.packed", crate, crate.getSlots()));
+		return true;
+	}
+	
+	@Override
+	public String onChat(String message) {
+		if (message.startsWith("!")) {
+			return message.substring("!".length());
+		}
 		
+		message = message.trim();
+		if (message.chars().anyMatch(Character::isWhitespace)) {
+			user.sendMessage(get("cmd.pack.problem.whitespace"));
+			return null;
+		}
+		
+		setBatch(message);
+		return null;
+	}
+	
+	private void setBatch(String input) {
+		if (input == null
+				|| input.equalsIgnoreCase("X")
+				|| input.equalsIgnoreCase(get("untitledBatch"))
+				|| input.equalsIgnoreCase("null")) {
+			this.batch = null;
+		} else {
+			this.batch = input;
+		}
+		user.sendMessage(getf("cmd.pack.nowPackingBatch", batch == null ? get("untitledBatch") : batch));
 	}
 	
 	@Override

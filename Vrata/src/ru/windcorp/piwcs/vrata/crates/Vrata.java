@@ -36,6 +36,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import ru.windcorp.piwcs.nestedcmd.NCComplaintException;
+import ru.windcorp.piwcs.vrata.VrataTemplates;
 import ru.windcorp.piwcs.vrata.exceptions.VrataOperationException;
 
 public class Vrata {
@@ -51,11 +52,11 @@ public class Vrata {
 		ASTRAL = tmp;
 	}
 
-	public static Crate importContainer(Player player) throws VrataOperationException {
+	public static Crate importContainer(Inventory inv) throws VrataOperationException {
 		Crate crate;
 		
-		if (player.getOpenInventory().getType() == InventoryType.CRAFTING) {
-			throw new IllegalStateException("Player " + player + " has no inventory open");
+		if (inv.getType() == InventoryType.CRAFTING) {
+			throw new IllegalStateException("Inventory is CRAFTING");
 		}
 		
 		try {
@@ -65,8 +66,8 @@ public class Vrata {
 			int slots = 0;
 			StringBuilder description = new StringBuilder();
 			
-			for (ItemStack stack : player.getOpenInventory().getTopInventory()) {
-				if (stack.getType() == Material.AIR || stack.getAmount() == 0) {
+			for (ItemStack stack : inv) {
+				if (stack == null || stack.getType() == Material.AIR || stack.getAmount() == 0) {
 					continue;
 				}
 				
@@ -80,7 +81,7 @@ public class Vrata {
 					throw new VrataOperationException("Could not pack a crate: could not write NBT", e);
 				}
 			}
-			
+			// TODO: cancel if empty
 			crate = Crate.createNew(nbtData.toByteArray(), slots, description.toString());
 		} catch (VrataOperationException e) {
 			throw e;
@@ -88,24 +89,31 @@ public class Vrata {
 			throw new VrataOperationException("Could not pack a crate", e);
 		}
 		
-		player.getOpenInventory().getTopInventory().clear();
+		inv.clear();
 		return crate;
 	}
 	
-	public static void exportContainer(Player player, Crate crate) throws VrataOperationException, NCComplaintException {
+	public static void exportContainer(Inventory inv, Crate crate) throws VrataOperationException, NCComplaintException {
 		if (crate.isDeployed()) {
 			throw new IllegalStateException("Crate " + crate + " has been deployed already");
 		}
 		
-		if (player.getOpenInventory().getType() == InventoryType.CRAFTING) {
-			throw new IllegalStateException("Player " + player + " has no inventory open");
+		if (inv.getType() == InventoryType.CRAFTING) {
+			throw new IllegalStateException("Inventory is CRAFTING");
 		}
 		
-		Inventory inventory = player.getOpenInventory().getTopInventory();
-		
-		if (inventory.getSize() - inventory.getContents().length < crate.getSlots()) {
-			throw new NCComplaintException("Too little space: " + crate.getSlots() +
-					" required, " + (inventory.getSize() - inventory.getContents().length) + " available");
+		{
+			int available = 0;
+			for (int slot  = 0; slot < inv.getSize(); ++slot) {
+				ItemStack stack = inv.getItem(slot);
+				if (stack == null || stack.getType() == Material.AIR || stack.getAmount() == 0) {
+					available++;
+				}
+			}
+			
+			if (available < crate.getSlots()) {
+				throw new NCComplaintException(VrataTemplates.getf("cmd.deploy.problem.notEnoughSpace", crate.getSlots(), available));
+			}
 		}
 		
 		try {
@@ -121,7 +129,7 @@ public class Vrata {
 					throw new VrataOperationException("Could not unpack a crate: could not read NBT", e);
 				}
 				
-				inventory.addItem(stack);
+				inv.addItem(stack);
 			}
 			
 			crate.setDeployed(true);
@@ -133,15 +141,16 @@ public class Vrata {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	private static String getDescriptionFor(ItemStack stack) {
-		return stack.toString();
+		return stack.getTypeId() + ":" + stack.getDurability() + " " + stack.toString().substring("ItemStack".length());
 	}
 	
 	public static String describeInventory(Inventory inv, Player backupData) {
 		InventoryHolder holder = inv.getHolder();
 		if (holder == null) {
 			Location loc = backupData.getLocation();
-			return "(no data, around " + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ();
+			return "(no data, around " + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ() + ")";
 		} else if (holder instanceof BlockState) {
 			BlockState blockState = (BlockState) holder;
 			return "Block[" + blockState.getData() + "@" + blockState.getX() + " " + blockState.getY() + " " + blockState.getZ() + "]";
@@ -150,7 +159,8 @@ public class Vrata {
 			Location loc = entity.getLocation();
 			return "Entity[" + entity.getType() + ":" + entity.getEntityId()+ "@" + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ() + "]";
 		} else {
-			return "Unknown[" + holder + "]";
+			Location loc = backupData.getLocation();
+			return "Unknown[" + holder + "] around " + loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ();
 		}
 	}
 	

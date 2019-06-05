@@ -18,14 +18,11 @@
 
 package ru.windcorp.piwcs.vrata;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -40,11 +37,11 @@ import ru.windcorp.piwcs.vrata.crates.Crate;
 
 public class VrataLogger {
 	
-	private static File logDirectory;
+	private static final Path LOG_DIR = VrataPlugin.getDataPath("logs");
 	private static final String FILE_PATTERN = "vrata-log-%1$tF.log";
 	private static final String ENTRY_PATTERN = "[%1$tT] %2$s";
 	private static final String CRATE_LOG_FILE = "vrata-crates.log";
-	private static final String CRATE_ENTRY_PATTERN = "%1$tT %2$100s %3$s = %3$s";
+	private static final String CRATE_ENTRY_PATTERN = "%1$tF %1$tT %2$30s UUID %3$s = %4$s";
 	private static Writer writer;
 	private static Writer crateWriter;
 	
@@ -54,54 +51,46 @@ public class VrataLogger {
 	private static final Timer TIMER = new Timer("VrataLogger", true);
 	
 	public static void setup() {
-		backupLogger = VrataPlugin.getInst().getLogger();
-
-		ZonedDateTime firstLaunch = ZonedDateTime.of(
-				LocalDate.now().plusDays(1),
-				LocalTime.MIDNIGHT,
-				ZoneId.systemDefault());
-		
-		TIMER.scheduleAtFixedRate(new TimerTask() {
-					@Override
-					public void run() {
-						updateFile();
-					}
-				},
-				// I just really hate these 20 Java Time/Date APIs
-				// While I'm on that page, I really hate calendars
-				new Date(firstLaunch.toEpochSecond() * 1000),
-				24l * 60 * 60 * 1000);
-
-		updateFile();
-		
 		try {
-			crateWriter = new BufferedWriter(
-					new OutputStreamWriter(
-							new FileOutputStream(
-									new File(
-											logDirectory,
-											CRATE_LOG_FILE
-									),
-									true
-							),
-					StandardCharsets.UTF_8)
-			);
-		} catch (FileNotFoundException e) {
+			backupLogger = VrataPlugin.getInst().getLogger();
+	
+			ZonedDateTime firstLaunch = ZonedDateTime.of(
+					LocalDate.now().plusDays(1),
+					LocalTime.MIDNIGHT,
+					ZoneId.systemDefault());
+			
+			Files.createDirectories(getLogDirectory());
+			
+			TIMER.scheduleAtFixedRate(new TimerTask() {
+						@Override
+						public void run() {
+							updateFile();
+						}
+					},
+					// I just really hate these 20 Java Time/Date APIs
+					// While I'm on that page, I really hate calendars
+					new Date(firstLaunch.toEpochSecond() * 1000),
+					24l * 60 * 60 * 1000);
+	
+			updateFile();
+			
+			crateWriter = Files.newBufferedWriter(getLogDirectory().resolve(CRATE_LOG_FILE), StandardCharsets.UTF_8);
+			
+			write("Plugin enabled");
+		} catch (IOException e) {
 			e.printStackTrace();
+			VrataPlugin.disable("Could not setup logs");
 		}
-		
-		write("Plugin enabled");
 	}
 	
 	public static void terminate() {
 		TIMER.cancel();
 		write("Plugin disabled");
-		if (writer != null) {
-			try {
-				writer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		try {
+			if (writer != null) writer.close();
+			if (crateWriter != null) crateWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 	
@@ -112,17 +101,9 @@ public class VrataLogger {
 				write("Switching to next file");
 			}
 			
-			writer = new BufferedWriter(
-					new OutputStreamWriter(
-							new FileOutputStream(
-									new File(
-											logDirectory,
-											String.format(FILE_PATTERN, Calendar.getInstance())
-									),
-									true
-							),
-					StandardCharsets.UTF_8)
-			);
+			writer = Files.newBufferedWriter(
+					getLogDirectory().resolve(String.format(FILE_PATTERN, Calendar.getInstance())),
+					StandardCharsets.UTF_8);
 			
 			write("File switched");
 		} catch (IOException e) {
@@ -151,6 +132,7 @@ public class VrataLogger {
 		try {
 			writer.write(String.format(ENTRY_PATTERN, System.currentTimeMillis(), message));
 			writer.write("\n");
+			writer.flush();
 		} catch (IOException e) {
 			handleIOException(message, e);
 		}
@@ -162,13 +144,18 @@ public class VrataLogger {
 	
 	public static synchronized void writeCrate(Crate crate) {
 		if (crateWriter == null) {
-			write(CRATE_ENTRY_PATTERN, crate.getCreationTime(), crate.toString(), crate.getUuid(), crate.getDescription());
+			write(CRATE_ENTRY_PATTERN,
+					crate.getCreationTime().toEpochMilli(),
+					crate.toString(), crate.getUuid(), crate.getDescription().replace('\n', ';'));
 			return;
 		}
 		
 		try {
-			crateWriter.write(String.format(CRATE_ENTRY_PATTERN, crate.getCreationTime(), crate.toString(), crate.getUuid(), crate.getDescription()));
+			crateWriter.write(String.format(CRATE_ENTRY_PATTERN,
+					crate.getCreationTime().toEpochMilli(),
+					crate.toString(), crate.getUuid(), crate.getDescription().replace('\n', ';')));
 			crateWriter.write("\n");
+			crateWriter.flush();
 		} catch (IOException e) {
 			write("IOException occured in VrataLogger: " + e);
 			write("Dumping crates to main log");
@@ -189,12 +176,8 @@ public class VrataLogger {
 		writer = null;
 	}
 
-	public static File getLogDirectory() {
-		return logDirectory;
-	}
-
-	public static void setLogDirectory(File logDirectory) {
-		VrataLogger.logDirectory = logDirectory;
+	public static Path getLogDirectory() {
+		return LOG_DIR;
 	}
 
 }

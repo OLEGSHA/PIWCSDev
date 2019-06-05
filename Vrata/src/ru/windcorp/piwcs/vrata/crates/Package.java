@@ -20,9 +20,9 @@ package ru.windcorp.piwcs.vrata.crates;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,9 +36,6 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -47,6 +44,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.vrata.users.VrataUser;
+import ru.windcorp.piwcs.vrata.users.VrataUsers;
 import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Package extends AbstractSet<Crate> {
@@ -59,11 +57,11 @@ public class Package extends AbstractSet<Crate> {
 	private final List<Crate> crates = new ArrayList<>();
 	
 	private String sorter = null;
-	private Comparator<? super Crate> currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+	private Comparator<? super Crate> currentComparator = CrateComparator.NULL_SORTER;
 	private int deployIndex = 0;
 	
-	private final File file;
-	private final File descFile;
+	private final Path file;
+	private final Path descFile;
 	
 	private VrataUser currentUser = null;
 	
@@ -75,8 +73,9 @@ public class Package extends AbstractSet<Crate> {
 		this.universeId = universeId;
 		this.name = name;
 		
-		this.file = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".package");
-		this.descFile = new File(Packages.getSaveDirectory(), escapeFileUnsafes(name) + "__" + uuid.toString() + ".desc.txt");
+		String fileName = escapeFileUnsafes(name) + "__" + uuid.toString();
+		this.file = Packages.getSaveDirectory().resolve(fileName + ".package");
+		this.descFile = Packages.getSaveDirectory().resolve(fileName + ".desc.txt");
 		
 		Packages.registerPackage(this);
 	}
@@ -153,8 +152,20 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public synchronized void saveDescriptions(Writer output) throws IOException {
+		output.write(this.toString());
+		
+		output.write("\nOwners: {");
+		for (String owner : getOwners()) {
+			output.write("\n\t");
+			output.write(owner);
+		}
+		output.write("\n}\n\n");
+		
+		output.write(Integer.toString(size()));
+		output.write(" crates total\n\n");
+		
 		for (Crate crate : this) {
-			output.write(crate.getBatch());
+			output.write(String.valueOf(crate.getBatch()));
 			output.write(": ");
 			output.write(crate.getUuid().toString());
 			output.write(" {\n");
@@ -270,7 +281,6 @@ public class Package extends AbstractSet<Crate> {
 			return false;
 		}
 		crates.remove(index);
-		crate.setPackage(null);
 		modify();
 		return true;
 	}
@@ -295,20 +305,15 @@ public class Package extends AbstractSet<Crate> {
 	
 	public synchronized void sort(String sorter) {
 		if (Objects.equals(this.sorter, sorter)) {
+			deployIndex = 0;
 			return;
 		}
 		
 		this.sorter = sorter;
-		if (sorter == null) {
-			final Matcher matcher = Pattern.compile(sorter, Pattern.UNICODE_CASE).matcher("");
-			currentComparator =
-					Comparator.comparing(
-							(Function<Crate, Boolean>)
-							crate -> 
-							matcher.reset(crate.getBatch()).matches())
-					.thenComparing(Crate.TOTAL_DEPLOY_ORDER);
+		if (sorter != null) {
+			currentComparator = new CrateComparator(sorter);
 		} else {
-			currentComparator = Crate.TOTAL_DEPLOY_ORDER;
+			currentComparator = CrateComparator.NULL_SORTER;
 		}
 		
 		crates.sort(currentComparator);
@@ -332,7 +337,7 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public synchronized void addOwner(String player) {
-		if (getOwners().add(player)) modify();
+		if (getOwners().add(player.toLowerCase())) modify();
 	}
 	
 	public synchronized boolean removeOwner(String player) {
@@ -346,7 +351,7 @@ public class Package extends AbstractSet<Crate> {
 	}
 	
 	public boolean isOwner(Player player) {
-		return isOwner(player.getName());
+		return isOwner(VrataUsers.getUser(player));
 	}
 	
 	public boolean isOwner(String name) {
@@ -395,17 +400,17 @@ public class Package extends AbstractSet<Crate> {
 		}
 	}
 
-	public File getFile() {
+	public Path getFile() {
 		return file;
 	}
 	
-	public File getDescriptionFile() {
+	public Path getDescriptionFile() {
 		return descFile;
 	}
 
 	@Override
 	public String toString() {
-		return "P" + getUuid().toString().substring(0, 6) + (isLocal() ? "-L" : "-R");
+		return "P-" + getName() + "-" + getUuid().toString().substring(0, 6) + (isLocal() ? "-L" : "-R");
 	}
 
 }

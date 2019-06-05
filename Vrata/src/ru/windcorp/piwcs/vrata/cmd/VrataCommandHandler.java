@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -78,15 +79,21 @@ public class VrataCommandHandler implements CommandExecutor {
 						null),
 				
 				new SubCommand(
-						new String[] {"select", "sel"},
+						new String[] {"select", "sel"},// TODO: BUG ignores duplicates
 						get("cmd.select.desc"), get("cmd.select.syntax"),
 						VrataCommandHandler::cmdSelect,
 						null),
 				
 				new SubCommand(
+						new String[] {"deselect", "desel"},
+						get("cmd.deselect.desc"), "",
+						VrataCommandHandler::cmdDeselect,
+						null),
+				
+				new SubCommand(
 						StringUtil.allCombinations(
-								new String[] {"remove", "delete", "rem", "del"},
-								new String[] {"Package", "Pkg"}),
+								new String[] {"remove", "delete", "rem", "del", "rm"},
+								new String[] {"Package", "Pkg", ""}),
 						get("cmd.removePackage.desc"), "",
 						checkPackageSelected.then(VrataCommandHandler::cmdRemovePackage),
 						null),
@@ -94,9 +101,9 @@ public class VrataCommandHandler implements CommandExecutor {
 				new SubCommand(
 						StringUtil.allCombinations(
 								new String[] {"list", "view"},
-								new String[] {"Package", "Pkg"},
+								new String[] {"Package", "Pkg", ""},
 								new String[] {"s", ""}),
-						get("cmd.listPackages.desc"), "",
+						get("cmd.listPackages.desc"), "",//TODO: BUG does not display anything
 						VrataCommandHandler::cmdListPackages,
 						null),
 				
@@ -112,10 +119,21 @@ public class VrataCommandHandler implements CommandExecutor {
 						checkPackageSelected.then(VrataCommandHandler::cmdDeploy),
 						isPlayer),
 				
-				new SubCommand("stop",
+				new SubCommand(
+						"stop",
 						get("cmd.stop.desc"), "",
 						VrataCommandHandler::cmdStop,
-						isPlayer)
+						isPlayer),
+				
+				new SubCommand(
+						new String[] {"info", "view"},
+						get("cmd.info.desc"), "",
+						checkPackageSelected.then(VrataCommandHandler::cmdInfo),
+						null)
+				
+				// TODO: CMD user status control
+				// TODO: CMD moderation
+				// TODO: CMD force save
 				
 				);
 	}
@@ -125,7 +143,10 @@ public class VrataCommandHandler implements CommandExecutor {
 		List<String> args = new LinkedList<>();
 		for (String arg : argsAsArray) args.add(arg);
 		
-		VrataLogger.write("%s issued command %s", sender, StringUtil.arrayToString(argsAsArray, " "));
+		StringBuilder sb = new StringBuilder(label);
+		for (String arg : argsAsArray) sb.append(" ").append(arg);
+		
+		VrataLogger.write("%s issued command /%s", sender.getName(), sb.toString());
 		
 		rootCommand.run(sender, args, label);
 		return true;
@@ -141,7 +162,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		if (name.isEmpty()) throw new NCComplaintException(get("cmd.new.problem.nameEmpty"));
 		if (isUUIDString(name)) throw new NCComplaintException(get("cmd.new.problem.newIsAUUID"));
 			
-		Set<String> owners = args.stream().map(String::toLowerCase).collect(Collectors.toCollection(HashSet::new));
+		Set<String> owners = new HashSet<>(args);
 		
 		if (!owners.remove("~") && (sender instanceof Player)) {
 			owners.add(sender.getName());
@@ -151,74 +172,80 @@ public class VrataCommandHandler implements CommandExecutor {
 		owners.forEach(owner -> VrataUserInterface.addPackageOwner(pkg, owner));
 		VrataUserInterface.selectPackage(pkg, VrataUsers.getUser(sender));
 		
-		sender.sendMessage(getf("cmd.new.success", pkg, pkg.getUuid()));
+		sender.sendMessage(getf("cmd.new.success", pkg));
 	}
 	
 	private static void cmdSelect(CommandSender sender, List<String> args, String fullCommand)
 			throws NCSyntaxException, NCComplaintException, VrataPermissionException {
+		
 		VrataUser user = VrataUsers.getUser(sender);
+		boolean canSelectAny = user.getProfile().isModerator();
 		
 		if (args.isEmpty()) {
-			Package pkg = user.getCurrentPackage();
-			if (pkg == null) {
-				throw new NCComplaintException(get("cmd.select.problem.nothingSelected"));
-			}
-			pkg.setCurrentUser(null);
-			user.sendMessage(getf("cmd.select.success.deselect", pkg));
+			cmdInfo(sender, args, fullCommand);
 			return;
 		}
 		
-		String query = args.get(0);
-		Package pkg = null;
+		String selector = args.get(0);
+		Package match = null;
 		
-		if (isUUIDString(query)) {
-			UUID uuid = UUID.fromString(query);
-			pkg = Packages.getPackage(uuid);
-			if (pkg == null) throw new NCComplaintException(getf("cmd.select.problem.noMatch.forUUID", uuid));
+		if (isUUIDString(selector)) {
+			UUID uuid = UUID.fromString(selector);
+			match = Packages.getPackage(uuid);
+			if (match == null) throw new NCComplaintException(getf("cmd.select.problem.noMatch.forUUID", uuid));
 		} else {
 			List<Package> pkgs = new ArrayList<>();
 			
 			for (Package p : Packages.getPackages()) {
-				if (query.equalsIgnoreCase(p.getName())) {
-					pkg = p;
+				if (p.getName().equalsIgnoreCase(selector)) {
+					match = p;
 					break;
-				} else if (p.getName().startsWith(query)) {
-					pkgs.add(p);
-				} else if (p.getUuid().toString().startsWith(query)) {
-					pkgs.add(p);
 				}
+				
+				if (!canSelectAny && !p.isOwner(user)) continue;
+				
+				if (
+						   p.toString().startsWith(selector)
+						|| p.getName().startsWith(selector)
+						|| p.getUuid().toString().startsWith(selector)
+						
+						) pkgs.add(p);
 			}
 			
-			if (pkg == null) {
-				if (pkgs.isEmpty()) {
-					throw new NCComplaintException(getf("cmd.select.problem.noMatch.forName", query));
-				} else if (pkgs.size() == 1) {
-					pkg = pkgs.get(0);
-				} else if (args.size() == 2) {
-					String uuidSpec = args.get(1);
-					pkgs.removeIf(p -> !p.getUuid().toString().startsWith(uuidSpec));
-					
-					if (pkgs.isEmpty()) {
-						throw new NCComplaintException(getf("cmd.select.problem.noMatch.forNameAndUUID", query, uuidSpec));
-					} else if (pkgs.size() == 1) {
-						pkg = pkgs.get(0);
-					} else {
-						user.sendMessage(getf("cmd.select.problem.manyMatches.forNameAndUUID", query, uuidSpec));
-						sendPackageList(pkgs, user::sendMessage);
-						user.sendMessage(get("cmd.select.problem.manyMatches.advice"));
-						return;
-					}
-				} else {
-					user.sendMessage(getf("cmd.select.problem.manyMatches.forName", query));
-					sendPackageList(pkgs, user::sendMessage);
-					user.sendMessage(get("cmd.select.problem.manyMatches.advice"));
-					return;
-				}
+			if (match == null) switch (pkgs.size()) {
+			case 0:
+				throw new NCComplaintException(getf("cmd.select.problem.noMatch.forName", selector));
+			case 1:
+				match = pkgs.get(0);
+				break;
+			default:
+				user.sendMessage(getf("cmd.select.problem.manyMatches.forName", selector));
+				sendPackageList(pkgs, user::sendMessage);
+				user.sendMessage(get("cmd.select.problem.manyMatches.advice"));
+				return;
 			}
 		}
 		
-		VrataUserInterface.selectPackage(pkg, user);
-		user.sendMessage(get("cmd.select.success.select"));
+		if (user.getCurrentPackage() == match) {
+			user.sendMessage(getf("cmd.select.problem.alreadySelected", match));
+			return;
+		}
+		
+		VrataUserInterface.selectPackage(match, user);
+		user.sendMessage(getf("cmd.select.success.select", match));
+	}
+	
+	private static void cmdDeselect(CommandSender sender, List<String> args, String fullCommand)
+			throws NCComplaintException, VrataPermissionException {
+		
+		VrataUser user = getUser(sender);
+		
+		if (user.getCurrentPackage() == null) {
+			user.sendMessage(get("cmd.deselect.success.nothingSelected"));
+		} else {
+			VrataUserInterface.selectPackage(null, user);
+			user.sendMessage(get("cmd.deselect.success.deselected"));
+		}
 	}
 	
 	private static void cmdRemovePackage(CommandSender sender, List<String> args, String fullCommand)
@@ -228,16 +255,15 @@ public class VrataCommandHandler implements CommandExecutor {
 			throw new NCSyntaxException(getf("cmd.removePackage.problem.args", pkg));
 		}
 		VrataUserInterface.removePackage(pkg);
-		sender.sendMessage(getf("cmd.removePackage.success"));
+		sender.sendMessage(getf("cmd.removePackage.success", pkg));
 	}
 	
 	private static void cmdListPackages(CommandSender sender, List<String> args, String fullCommand)
 			throws NCComplaintException, VrataPermissionException {
 		
 		VrataUser user = VrataUsers.getUser(sender);
-		Collection<Package> pkgs = Packages.packages()
-				.filter(p -> p.getOwners()
-				.contains(user.getProfile().getName()))
+		List<Package> pkgs = Packages.packages()
+				.filter(p -> p.isOwner(user))
 				.collect(Collectors.toList());
 		
 		if (pkgs.isEmpty()) {
@@ -247,7 +273,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		
 		if (pkgs.size() == 1) {
 			user.sendMessage(get("cmd.listPackages.success.onePackage"));
-			Package theOne = pkgs.iterator().next();
+			Package theOne = pkgs.get(0);
 			user.sendMessage(getf("cmd.packageListFormat", theOne.getName(), theOne.getUuid(), 1));
 			return;
 		}
@@ -274,6 +300,35 @@ public class VrataCommandHandler implements CommandExecutor {
 		if (!VrataListener.unregisterHandler(VrataUsers.getUser(sender).getPlayer())) {
 			sender.sendMessage(get("cmd.stop.problem.nothingToStop"));
 		}
+	}
+	
+	private static void cmdInfo(CommandSender sender, List<String> args, String fullCommand) {
+		VrataUser user = getUser(sender);
+		Package pkg = user.getCurrentPackage();
+		synchronized (pkg) {
+			user.sendMessage(getf("cmd.info.header",
+					pkg.getName(),
+					pkg.toString(),
+					pkg.getUuid().toString(),
+					StringUtil.iterableToString(pkg.getOwners(), ", ")));
+		
+			int pkgSize = pkg.size();
+			switch (pkg.size()) {
+			case 0:
+				user.sendMessage(get("cmd.info.empty"));
+				return;
+			case 1:
+				user.sendMessage(get("cmd.info.single"));
+				user.sendMessage(getf("cmd.info.crates", pkg.iterator().next()));
+				return;
+			default:
+				user.sendMessage(getf("cmd.info.multiple", pkgSize));
+				user.sendMessage(getf("cmd.info.crates", StringUtil.iterableToString(pkg, " ")));
+				return;
+			}
+		}
+		
+		
 	}
 	
 	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {

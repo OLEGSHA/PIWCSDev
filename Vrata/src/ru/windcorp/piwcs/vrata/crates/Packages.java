@@ -18,36 +18,37 @@
 
 package ru.windcorp.piwcs.vrata.crates;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import ru.windcorp.piwcs.vrata.VrataPlugin;
 import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Packages {
 	
-	private static File saveDir = null;
+	private static final Path SAVE_DIR = VrataPlugin.getDataPath("packages");
 	
 	private static final Map<UUID, Package> PACKAGES = Collections.synchronizedMap(new HashMap<>());
+	private static final Set<Path> FILES_TO_DELETE = Collections.synchronizedSet(new HashSet<>());
 	
-	public static void setSaveDirectory(File saveDir) {
-		Packages.saveDir = saveDir;
-	}
-	
-	public static File getSaveDirectory() {
-		return saveDir;
+	public static Path getSaveDirectory() {
+		return SAVE_DIR;
 	}
 
 	public static Collection<Package> getPackages() {
@@ -63,31 +64,97 @@ public class Packages {
 	}
 	
 	static void registerPackage(Package pkg) {
-		PACKAGES.put(pkg.getUuid(), pkg);
+		Package existing = PACKAGES.put(pkg.getUuid(), pkg);
+		FILES_TO_DELETE.remove(pkg.getFile());
+		
+		if (existing != null) {
+			throw new IllegalArgumentException("Duplicate package UUID: " + existing + " and " + pkg);
+		}
 	}
 	
-	public static boolean removePackage(Package pkg) {
+	public static void removePackage(Package pkg) {
+		if (PACKAGES.get(pkg.getUuid()) != pkg) {
+			throw new IllegalArgumentException("Package " + pkg + " was never registered");
+		}
+		
 		pkg.setCurrentUser(null);
-		return !PACKAGES.remove(pkg.getUuid(), pkg);
+		FILES_TO_DELETE.add(pkg.getFile());
+		FILES_TO_DELETE.add(pkg.getDescriptionFile()); // Description file will be empty
+		PACKAGES.remove(pkg.getUuid());
 	}
 	
 	public static void load() throws IOException {
-		for (File file : getSaveDirectory().listFiles((FileFilter)
-				file -> file.isFile() && file.getName().endsWith(".package")
-				)) {
+		Files.createDirectories(getSaveDirectory());
+		
+		synchronized (PACKAGES) {
+			if (!PACKAGES.isEmpty()) {
+				throw new IllegalStateException("Packages already loaded");
+			}
 			
-			Package pkg = Package.load(new DataInputStream(new FileInputStream(file)));
-			PACKAGES.put(pkg.getUuid(), pkg);
+			for (Path path : Files.newDirectoryStream(getSaveDirectory(), "*.package")) {
+				try {
+					Package.load(
+							new DataInputStream(
+									new BufferedInputStream(
+											Files.newInputStream(path)
+									)
+							)
+					);
+				} catch (IllegalArgumentException e) {
+					throw new IOException("Duplicate packages detected", e);
+				}
+				
+			}
 		}
+		
+		VrataPlugin.getInst().getLogger().info("Loaded " + PACKAGES.size() + " packages");
 	}
 
 	public static void save() throws IOException {
-		for (Package pkg : PACKAGES.values()) {
-			if (pkg.needsSaving()) {
-				pkg.save(new DataOutputStream(new FileOutputStream(pkg.getFile())));
+		synchronized (PACKAGES) {
+			for (Package pkg : PACKAGES.values()) {
+				if (pkg.needsSaving()) {
+					try (DataOutputStream output =
+							new DataOutputStream(
+									new BufferedOutputStream(
+											Files.newOutputStream(pkg.getFile())
+									)
+							)
+					) {
+						pkg.save(output);
+					}
+				}
+				if (pkg.needsDescriptionRewrite()) {
+					try (Writer jkRowling = Files.newBufferedWriter(pkg.getDescriptionFile(), StandardCharsets.UTF_8)) {
+						pkg.saveDescriptions(jkRowling);
+					}
+				}
 			}
-			if (pkg.needsDescriptionRewrite()) {
-				pkg.saveDescriptions(new OutputStreamWriter(new FileOutputStream(pkg.getFile()), StandardCharsets.UTF_8));
+		}
+		
+		VrataPlugin.getInst().getLogger().info("Saved " + PACKAGES.size() + " packages");
+		
+		synchronized (FILES_TO_DELETE) {
+			for (Iterator<Path> it = FILES_TO_DELETE.iterator(); it.hasNext();) {
+				Path file = it.next();
+				
+				try {
+					Files.deleteIfExists(file);
+					it.remove();
+					continue;
+				} catch (IOException e) {
+					VrataPlugin.getInst().getLogger().warning("Could not delete file " + file + ": " + e);
+					// Do not remove
+					continue;
+				}
+			}
+		}
+	}
+
+	public static void attemptSave() {
+		synchronized (PACKAGES) {
+			if (packages().allMatch(pkg -> pkg.getCurrentUser() == null)) {
+				VrataPlugin.save();
 			}
 		}
 	}

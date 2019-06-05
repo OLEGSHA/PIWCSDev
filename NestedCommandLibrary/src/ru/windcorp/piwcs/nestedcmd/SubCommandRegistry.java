@@ -39,7 +39,7 @@ public class SubCommandRegistry extends SubCommand {
 		
 		for (SubCommand command : commands) {
 			for (String name : command.getNames()) {
-				getSubCommands().put(name, command);
+				getSubCommands().put(name.toLowerCase(), command);
 			}
 		}
 	}
@@ -67,7 +67,7 @@ public class SubCommandRegistry extends SubCommand {
 			return;
 		}
 
-		SubCommand command = getSubCommands().get(name);
+		SubCommand command = getSubCommands().get(name.toLowerCase());
 		if (command == null) {
 			showHelp(sender);
 			return;
@@ -78,11 +78,13 @@ public class SubCommandRegistry extends SubCommand {
 
 	public void showHelp(CommandSender sender) {
 		sender.sendMessage(String.format(helpHeader, getName()));
-		for (SubCommand command : getSubCommands().values()) {
-			if (command.getFilter().getException(sender) == null) {
-				sender.sendMessage(String.format(helpFormat, command.getName(), command.getSyntax(), command.getDescription()));
-			}
-		}
+		getSubCommands().values().stream()
+				.distinct()
+				.filter(command -> command.getFilter() == null || command.getFilter().getException(sender) == null)
+				.forEach(
+						command ->
+						sender.sendMessage(String.format(helpFormat, command.getName(), command.getSyntax(), command.getDescription()))
+						);
 	}
 
 }

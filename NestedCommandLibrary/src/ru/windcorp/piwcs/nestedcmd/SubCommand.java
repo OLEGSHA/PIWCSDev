@@ -38,7 +38,7 @@ public class SubCommand {
 			CommandSenderFilter filter) {
 		this.names = names;
 		this.description = description;
-		this.syntax = names[0] + " " + syntax;
+		this.syntax = syntax;
 		this.executor = executor;
 		this.filter = filter;
 	}
