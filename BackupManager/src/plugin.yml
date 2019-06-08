@@ -4,4 +4,9 @@ description: PIWCS Backup Manager
 author: Javapony
 
 main: ru.windcorp.piwcs.pbm.PBMPlugin
+
+commands:
+   backup:
+     description: Creates a backup
+     usage: backup
   

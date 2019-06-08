@@ -22,7 +22,9 @@ class DirectoryCopier extends SimpleFileVisitor<Path> {
 	
 	@Override
 	public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-		Files.copy(dir, destination.resolve(source.relativize(dir)), StandardCopyOption.COPY_ATTRIBUTES);
+		if (!dir.equals(source)) {
+			Files.copy(dir, destination.resolve(source.relativize(dir)), StandardCopyOption.COPY_ATTRIBUTES);
+		}
 		return CONTINUE;
 	}
 	
