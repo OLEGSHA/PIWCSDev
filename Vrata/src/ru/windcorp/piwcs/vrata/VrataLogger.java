@@ -50,37 +50,32 @@ public class VrataLogger {
 	
 	private static final Timer TIMER = new Timer("VrataLogger", true);
 	
-	public static void setup() {
-		try {
-			backupLogger = VrataPlugin.getInst().getLogger();
-	
-			ZonedDateTime firstLaunch = ZonedDateTime.of(
-					LocalDate.now().plusDays(1),
-					LocalTime.MIDNIGHT,
-					ZoneId.systemDefault());
-			
-			Files.createDirectories(getLogDirectory());
-			
-			TIMER.scheduleAtFixedRate(new TimerTask() {
-						@Override
-						public void run() {
-							updateFile();
-						}
-					},
-					// I just really hate these 20 Java Time/Date APIs
-					// While I'm on that page, I really hate calendars
-					new Date(firstLaunch.toEpochSecond() * 1000),
-					24l * 60 * 60 * 1000);
-	
-			updateFile();
-			
-			crateWriter = Files.newBufferedWriter(getLogDirectory().resolve(CRATE_LOG_FILE), StandardCharsets.UTF_8);
-			
-			write("Plugin enabled");
-		} catch (IOException e) {
-			e.printStackTrace();
-			VrataPlugin.disable("Could not setup logs");
-		}
+	public static void setup() throws IOException {
+		backupLogger = VrataPlugin.getInst().getLogger();
+
+		ZonedDateTime firstLaunch = ZonedDateTime.of(
+				LocalDate.now().plusDays(1),
+				LocalTime.MIDNIGHT,
+				ZoneId.systemDefault());
+		
+		Files.createDirectories(getLogDirectory());
+		
+		TIMER.scheduleAtFixedRate(new TimerTask() {
+					@Override
+					public void run() {
+						updateFile();
+					}
+				},
+				// I just really hate these 20 Java Time/Date APIs
+				// While I'm on that page, I really hate calendars
+				new Date(firstLaunch.toEpochSecond() * 1000),
+				24l * 60 * 60 * 1000);
+
+		updateFile();
+		
+		crateWriter = Files.newBufferedWriter(getLogDirectory().resolve(CRATE_LOG_FILE), StandardCharsets.UTF_8);
+		
+		write("Plugin enabled");
 	}
 	
 	public static void terminate() {

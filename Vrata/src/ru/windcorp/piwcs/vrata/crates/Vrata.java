@@ -81,7 +81,6 @@ public class Vrata {
 					throw new VrataOperationException("Could not pack a crate: could not write NBT", e);
 				}
 			}
-			// TODO: cancel if empty
 			crate = Crate.createNew(nbtData.toByteArray(), slots, description.toString());
 		} catch (VrataOperationException e) {
 			throw e;
@@ -89,7 +88,6 @@ public class Vrata {
 			throw new VrataOperationException("Could not pack a crate", e);
 		}
 		
-		inv.clear();
 		return crate;
 	}
 	

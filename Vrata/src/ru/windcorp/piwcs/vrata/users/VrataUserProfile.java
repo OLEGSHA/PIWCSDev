@@ -20,7 +20,6 @@ package ru.windcorp.piwcs.vrata.users;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class VrataUserProfile {
@@ -76,15 +75,20 @@ public class VrataUserProfile {
 		return isAtLeast(Status.MODERATOR);
 	}
 	
-	public static VrataUserProfile load(Scanner input) throws NoSuchElementException {
-		String name = input.next();
-		Status status;
+	public static VrataUserProfile load(Scanner input) throws IOException {
+		String name = null;
 		try {
-			status = Status.valueOf(input.next());
-		} catch (IllegalArgumentException e) {
-			status = Status.USER;
+			name = input.next();
+			Status status;
+			try {
+				status = Status.valueOf(input.next());
+			} catch (IllegalArgumentException e) {
+				status = Status.USER;
+			}
+			return new VrataUserProfile(name, status);
+		} catch (Exception e) {
+			throw new IOException("Could not read profile with name " + name, e);
 		}
-		return new VrataUserProfile(name, status);
 	}
 	
 	public void save(Writer output) throws IOException {

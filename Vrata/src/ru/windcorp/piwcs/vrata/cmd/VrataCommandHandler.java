@@ -19,14 +19,12 @@
 package ru.windcorp.piwcs.vrata.cmd;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,9 +35,12 @@ import org.bukkit.entity.Player;
 
 import ru.windcorp.piwcs.nestedcmd.*;
 import ru.windcorp.piwcs.vrata.VrataLogger;
+import ru.windcorp.piwcs.vrata.VrataPlugin;
 import ru.windcorp.piwcs.vrata.VrataUserInterface;
 import ru.windcorp.piwcs.vrata.exceptions.VrataPermissionException;
 import ru.windcorp.piwcs.vrata.users.VrataUser;
+import ru.windcorp.piwcs.vrata.users.VrataUserProfile;
+import ru.windcorp.piwcs.vrata.users.VrataUserProfile.Status;
 import ru.windcorp.piwcs.vrata.users.VrataUsers;
 import ru.windcorp.tge2.util.StringUtil;
 import ru.windcorp.piwcs.vrata.crates.Package;
@@ -129,11 +130,36 @@ public class VrataCommandHandler implements CommandExecutor {
 						new String[] {"info", "view"},
 						get("cmd.info.desc"), "",
 						checkPackageSelected.then(VrataCommandHandler::cmdInfo),
-						null)
+						null),
 				
-				// TODO: CMD user status control
+				new SubCommand(
+						"save",
+						get("cmd.save.desc"), "",
+						VrataCommandHandler::cmdSave,
+						null),
+				
+				new SubCommandRegistry(
+						"users",
+						get("cmd.users.desc"),
+						isAdmin,
+						helpFormat,
+						helpHeader,
+						
+						new SubCommand(
+								"info",
+								get("cmd.users.info.desc"), get("cmd.users.info.syntax"),
+								VrataCommandHandler::cmdUsersInfo,
+								null),
+						
+						new SubCommand(
+								"status",
+								get("cmd.users.status.desc"), get("cmd.users.status.syntax"),
+								VrataCommandHandler::cmdUsersStatus,
+								null)
+						
+						)
+				
 				// TODO: CMD moderation
-				// TODO: CMD force save
 				
 				);
 	}
@@ -327,8 +353,104 @@ public class VrataCommandHandler implements CommandExecutor {
 				return;
 			}
 		}
+	}
+	
+	private static void cmdSave(CommandSender sender, List<String> args, String fullCommand) {
+		VrataPlugin.save();
+		sender.sendMessage(get("cmd.save.success"));
+	}
+	
+	private static void cmdUsersInfo(CommandSender sender, List<String> args, String fullCommand)
+			throws NCSyntaxException, NCComplaintException {
+		VrataUserProfile profile;
 		
+		if (args.isEmpty()) {
+			if (!(sender instanceof Player)) {
+				throw new NCSyntaxException(get("cmd.users.problem.notPlayer"));
+			}
+			
+			profile = getUser(sender).getProfile();
+		} else {
+			profile = getExistingPlayerProfile(args.get(0));
+			
+			if (profile == null) {
+				throw new NCComplaintException(getf("cmd.users.problem.notFound", args.get(0)));
+			}
+		}
 		
+		String ownedPackages = StringUtil.iteratorToString(
+				Packages.packages().filter(p -> p.isOwner(profile.getName())).iterator(),
+				", ",
+				get("cmd.users.info.success.noPackages"),
+				"null",
+				"{null}");
+		
+		String selectedPackage;
+		
+		{
+			VrataUser user = getOnlineUser(profile);
+			if (user == null) {
+				selectedPackage = get("cmd.users.info.success.selectedPackage.notOnline");
+			} else if (user.getCurrentPackage() == null) {
+				selectedPackage = get("cmd.users.info.success.electedPackage.empty");
+			} else {
+				selectedPackage = user.getCurrentPackage().toString();
+			}
+		}
+		
+		sender.sendMessage(getf("cmd.users.info.success", profile.getName(), profile.getStatus(), selectedPackage, ownedPackages));
+	}
+	
+	private static void cmdUsersStatus(CommandSender sender, List<String> args, String fullCommand)
+			throws NCSyntaxException, NCComplaintException {
+		VrataUserProfile profile;
+		int statusArgIndex;
+		
+		if (args.isEmpty()) {
+			if (!(sender instanceof Player)) {
+				throw new NCSyntaxException(get("cmd.users.problem.notPlayer"));
+			}
+			
+			profile = getUser(sender).getProfile();
+			statusArgIndex = 0;
+		} else {
+			profile = getExistingPlayerProfile(args.get(0));
+			
+			if (profile == null) {
+				throw new NCComplaintException(getf("cmd.users.problem.notFound", args.get(0)));
+			}
+			statusArgIndex = 1;
+		}
+		
+		if (args.size() <= statusArgIndex) {
+			throw new NCSyntaxException(get("cmd.users.status.problem.noStatus"));
+		}
+		
+		if (profile.getStatus() == Status.NON_PLAYER) {
+			throw new NCComplaintException(getf("cmd.users.status.problem.cannotChangeNonPlayer"));
+		}
+		
+		String newStatusString = args.get(statusArgIndex);
+		Status newStatus = null;
+		
+		try {
+			newStatus = Status.values()[Integer.parseInt(newStatusString)];
+		} catch (NumberFormatException e) {
+			try {
+				newStatus = Status.valueOf(newStatusString);
+			} catch (IllegalArgumentException e1) {
+				throw new NCComplaintException(getf("cmd.users.status.problem.noSuchStatus", newStatusString));
+			}
+		} catch (IllegalArgumentException e) {
+			throw new NCComplaintException(getf("cmd.users.status.problem.noSuchStatus", newStatusString));
+		}
+		
+		if (newStatus == Status.NON_PLAYER) {
+			throw new NCComplaintException(getf("cmd.users.status.problem.cannotSetNonPlayer"));
+		}
+		
+		profile.setStatus(newStatus);
+		sender.sendMessage(getf("cmd.users.status.success", profile.getName(), profile.getStatus()));
 	}
 	
 	public static void onPackageSelectionChanged(VrataUser user, Package oldPkg, Package newPkg) {

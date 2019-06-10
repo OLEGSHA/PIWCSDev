@@ -51,11 +51,17 @@ public class VrataPlugin extends JavaPlugin {
 	
 	@Override
 	public void onEnable() {
-		VrataLogger.setup();
+		try {
+			VrataLogger.setup();
+		} catch (Exception e) {
+			e.printStackTrace();
+			disable("Could not setup log");
+			return;
+		}
 		
 		try {
 			VrataTemplates.load();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			disable("Could not load message templates");
 			return;
@@ -63,7 +69,7 @@ public class VrataPlugin extends JavaPlugin {
 		
 		try {
 			VrataUsers.load();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			disable("Could not load user database");
 			return;

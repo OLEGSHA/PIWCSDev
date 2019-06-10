@@ -58,6 +58,10 @@ public class VrataUserInterface {
 			user = null;
 		}
 		
+		if (pkg == null) {
+			return;
+		}
+		
 		if (pkg.getCurrentUser() == user) {
 			return;
 		}

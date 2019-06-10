@@ -87,7 +87,7 @@ public class VrataUsers {
 	public static synchronized VrataUserProfile getPlayerProfile(String name) {
 		name = name.toLowerCase();
 		
-		VrataUserProfile profile = PROFILES.get(name);
+		VrataUserProfile profile = getExistingPlayerProfile(name);
 		
 		if (profile == null) {
 			profile = new VrataUserProfile(name, VrataUserProfile.Status.USER);
@@ -95,6 +95,10 @@ public class VrataUsers {
 		}
 		
 		return profile;
+	}
+	
+	public static synchronized VrataUserProfile getExistingPlayerProfile(String name) {
+		return PROFILES.get(name.toLowerCase());
 	}
 	
 	public static synchronized VrataUser getUser(CommandSender sender) {
@@ -110,6 +114,20 @@ public class VrataUsers {
 		}
 		
 		return user;
+	}
+	
+	public static synchronized VrataUser getOnlineUser(VrataUserProfile profile) {
+		for (VrataUser user : USERS.values()) {
+			if (user.getProfile() == profile) {
+				if (user.isPlayer() && user.getPlayer().isOnline()) {
+					return user;
+				} else {
+					return null;
+				}
+			}
+		}
+		
+		return null;
 	}
 
 }

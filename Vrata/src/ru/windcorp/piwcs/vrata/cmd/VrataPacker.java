@@ -55,6 +55,11 @@ public class VrataPacker implements VrataPlayerHandler {
 	public boolean onInventoryOpened(Inventory inventory) {
 		if (!Vrata.isAContainer(inventory)) return false;
 		
+		if (inventory.firstEmpty() == 0) {
+			user.sendMessage(get("cmd.pack.skipped"));
+			return true;
+		}
+		
 		Package pkg = user.getCurrentPackage();
 		Crate crate;
 		
@@ -80,6 +85,8 @@ public class VrataPacker implements VrataPlayerHandler {
 				Vrata.describeInventory(inventory, user.getPlayer()));
 		VrataLogger.writeCrate(crate);
 		user.sendMessage(getf("cmd.pack.packed", crate, crate.getSlots()));
+		
+		inventory.clear();
 		return true;
 	}
 	

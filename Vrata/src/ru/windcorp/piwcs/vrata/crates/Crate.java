@@ -89,14 +89,14 @@ public class Crate {
 	}
 	
 	public static Crate load(DataInput input) throws IOException {
-		long number = input.readLong();
-		if (number != MAGIC_NUMBER) {
-			throw new IOException("Could not load crate: invalid magic number, trying to read garbage."
-					+ " Expected " + Long.toHexString(MAGIC_NUMBER) + ", got " + Long.toHexString(number));
-		}
-		
 		UUID own = null, pkg = null;
 		try {
+			long number = input.readLong();
+			if (number != MAGIC_NUMBER) {
+				throw new IOException("Could not load crate: invalid magic number, trying to read garbage."
+						+ " Expected " + Long.toHexString(MAGIC_NUMBER) + ", got " + Long.toHexString(number));
+			}
+			
 			return new Crate(
 					
 					own = new UUID(input.readLong(), input.readLong()),
@@ -260,7 +260,9 @@ public class Crate {
 	}
 
 	private static String getShortId(UUID own, UUID pkg) {
-		return pkg.toString().substring(0, 6) + "-" + own.toString().substring(0, 6);
+		return (pkg == null ? "null" : pkg.toString().substring(0, 6))
+				+ "-" +
+				(own == null ? "null" : own.toString().substring(0, 6));
 	}
 
 	public boolean needsSaving() {

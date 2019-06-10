@@ -102,6 +102,10 @@ public class Packages {
 					);
 				} catch (IllegalArgumentException e) {
 					throw new IOException("Duplicate packages detected", e);
+				} catch (IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException("Could not read package from file " + path, e);
 				}
 				
 			}
@@ -113,21 +117,27 @@ public class Packages {
 	public static void save() throws IOException {
 		synchronized (PACKAGES) {
 			for (Package pkg : PACKAGES.values()) {
-				if (pkg.needsSaving()) {
-					try (DataOutputStream output =
-							new DataOutputStream(
-									new BufferedOutputStream(
-											Files.newOutputStream(pkg.getFile())
-									)
-							)
-					) {
-						pkg.save(output);
+				try {
+					if (pkg.needsSaving()) {
+						try (DataOutputStream output =
+								new DataOutputStream(
+										new BufferedOutputStream(
+												Files.newOutputStream(pkg.getFile())
+										)
+								)
+						) {
+							pkg.save(output);
+						}
 					}
-				}
-				if (pkg.needsDescriptionRewrite()) {
-					try (Writer jkRowling = Files.newBufferedWriter(pkg.getDescriptionFile(), StandardCharsets.UTF_8)) {
-						pkg.saveDescriptions(jkRowling);
+					if (pkg.needsDescriptionRewrite()) {
+						try (Writer jkRowling = Files.newBufferedWriter(pkg.getDescriptionFile(), StandardCharsets.UTF_8)) {
+							pkg.saveDescriptions(jkRowling);
+						}
 					}
+				} catch (IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException("Could not save package " + pkg, e);
 				}
 			}
 		}
