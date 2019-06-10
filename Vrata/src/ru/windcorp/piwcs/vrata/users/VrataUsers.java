@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.WeakHashMap;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -117,17 +118,14 @@ public class VrataUsers {
 	}
 	
 	public static synchronized VrataUser getOnlineUser(VrataUserProfile profile) {
-		for (VrataUser user : USERS.values()) {
-			if (user.getProfile() == profile) {
-				if (user.isPlayer() && user.getPlayer().isOnline()) {
-					return user;
-				} else {
-					return null;
-				}
-			}
+		@SuppressWarnings("deprecation")
+		Player player = Bukkit.getPlayer(profile.getName());
+		
+		if (player == null) {
+			return null;
 		}
 		
-		return null;
+		return getUser(player);
 	}
 
 }

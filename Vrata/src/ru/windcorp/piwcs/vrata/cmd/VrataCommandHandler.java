@@ -60,11 +60,11 @@ public class VrataCommandHandler implements CommandExecutor {
 		String helpHeader = get("cmd.helpHeader");
 		
 		CommandSenderFilter isPlayer =
-				sender -> sender instanceof Player ? null : VrataPermissionException.create("problem.notPlayer", null);
+				sender -> sender instanceof Player ? VrataPermissionException.create("problem.notPlayer", null) : null;
 		CommandSenderFilter canModerate =
-				sender -> sender instanceof Player ? null : VrataPermissionException.checkModerator(getPlayerProfile(sender.getName()));
+				sender -> sender instanceof Player ? VrataPermissionException.checkModerator(getPlayerProfile(sender.getName())) : null;
 		CommandSenderFilter isAdmin =
-				sender -> sender instanceof Player ? null : VrataPermissionException.checkAdmin(getPlayerProfile(sender.getName()));
+				sender -> sender instanceof Player ? VrataPermissionException.checkAdmin(getPlayerProfile(sender.getName())) : null;
 				
 		SubCommandExecutor checkPackageSelected = VrataCommandHandler::checkPackageSelection;
 		
@@ -363,13 +363,11 @@ public class VrataCommandHandler implements CommandExecutor {
 	private static void cmdUsersInfo(CommandSender sender, List<String> args, String fullCommand)
 			throws NCSyntaxException, NCComplaintException {
 		VrataUserProfile profile;
+		VrataUser user = null;
 		
 		if (args.isEmpty()) {
-			if (!(sender instanceof Player)) {
-				throw new NCSyntaxException(get("cmd.users.problem.notPlayer"));
-			}
-			
-			profile = getUser(sender).getProfile();
+			user = getUser(sender);
+			profile = user.getProfile();
 		} else {
 			profile = getExistingPlayerProfile(args.get(0));
 			
@@ -388,11 +386,11 @@ public class VrataCommandHandler implements CommandExecutor {
 		String selectedPackage;
 		
 		{
-			VrataUser user = getOnlineUser(profile);
+			if (user == null) user = getOnlineUser(profile);
 			if (user == null) {
 				selectedPackage = get("cmd.users.info.success.selectedPackage.notOnline");
 			} else if (user.getCurrentPackage() == null) {
-				selectedPackage = get("cmd.users.info.success.electedPackage.empty");
+				selectedPackage = get("cmd.users.info.success.selectedPackage.empty");
 			} else {
 				selectedPackage = user.getCurrentPackage().toString();
 			}
@@ -416,10 +414,8 @@ public class VrataCommandHandler implements CommandExecutor {
 		} else {
 			profile = getExistingPlayerProfile(args.get(0));
 			
-			if (profile == null) {
-				throw new NCComplaintException(getf("cmd.users.problem.notFound", args.get(0)));
-			}
-			statusArgIndex = 1;
+			if (profile == null) statusArgIndex = 0;
+			else statusArgIndex = 1;
 		}
 		
 		if (args.size() <= statusArgIndex) {
@@ -437,7 +433,7 @@ public class VrataCommandHandler implements CommandExecutor {
 			newStatus = Status.values()[Integer.parseInt(newStatusString)];
 		} catch (NumberFormatException e) {
 			try {
-				newStatus = Status.valueOf(newStatusString);
+				newStatus = Status.valueOf(newStatusString.toUpperCase());
 			} catch (IllegalArgumentException e1) {
 				throw new NCComplaintException(getf("cmd.users.status.problem.noSuchStatus", newStatusString));
 			}

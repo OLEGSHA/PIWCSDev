@@ -396,6 +396,9 @@ public class Package extends AbstractSet<Crate> {
 		this.currentUser = user;
 		
 		if (user != null) {
+			if (user.getCurrentPackage() != null) {
+				user.getCurrentPackage().setCurrentUser(null);
+			}
 			user.setCurrentPackage(this);
 		}
 	}

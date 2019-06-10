@@ -7,5 +7,6 @@ main: ru.windcorp.piwcs.vrata.VrataPlugin
 
 commands:
    vrata:
+     aliases: vr
      description: Root command for PIWCS Vrata
      usage: vrata [args...].

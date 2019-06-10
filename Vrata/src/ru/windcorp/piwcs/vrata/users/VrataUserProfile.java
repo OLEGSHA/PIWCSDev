@@ -35,6 +35,7 @@ public class VrataUserProfile {
 	private Status status;
 	
 	protected VrataUserProfile(String name, Status status) {
+		System.out.println("Created new profile obj");
 		this.name = name;
 		this.status = status;
 	}
