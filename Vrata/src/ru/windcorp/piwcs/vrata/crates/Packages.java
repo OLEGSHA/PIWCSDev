@@ -37,8 +37,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import ru.windcorp.jputil.SyncStreams;
 import ru.windcorp.piwcs.vrata.VrataPlugin;
-import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Packages {
 	

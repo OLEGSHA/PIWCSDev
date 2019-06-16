@@ -43,9 +43,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import ru.windcorp.jputil.SyncStreams;
 import ru.windcorp.piwcs.vrata.users.VrataUser;
 import ru.windcorp.piwcs.vrata.users.VrataUsers;
-import ru.windcorp.tge2.util.synch.SyncStreams;
 
 public class Package extends AbstractSet<Crate> {
 	

@@ -33,6 +33,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import ru.windcorp.jputil.chars.StringUtil;
 import ru.windcorp.piwcs.nestedcmd.*;
 import ru.windcorp.piwcs.vrata.VrataLogger;
 import ru.windcorp.piwcs.vrata.VrataPlugin;
@@ -42,7 +43,6 @@ import ru.windcorp.piwcs.vrata.users.VrataUser;
 import ru.windcorp.piwcs.vrata.users.VrataUserProfile;
 import ru.windcorp.piwcs.vrata.users.VrataUserProfile.Status;
 import ru.windcorp.piwcs.vrata.users.VrataUsers;
-import ru.windcorp.tge2.util.StringUtil;
 import ru.windcorp.piwcs.vrata.crates.Package;
 import ru.windcorp.piwcs.vrata.crates.Packages;
 

@@ -26,7 +26,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
-import ru.windcorp.tge2.util.StringUtil;
+import ru.windcorp.jputil.chars.StringUtil;
 
 public class FieldManager {
 	
