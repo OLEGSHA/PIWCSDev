@@ -17,6 +17,7 @@
 package ru.windcorp.piwcs.acc.db;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import ru.windcorp.piwcs.acc.db.FieldManager.FieldLoader;
@@ -39,21 +40,21 @@ public class Field<T> extends AbstractField {
 			Supplier<T> def, boolean isRequired,
 			T value) {
 		super(name, type, isRequired);
-		this.clazz = clazz;
-		this.loader = loader;
-		this.writer = writer;
+		this.clazz = Objects.requireNonNull(clazz, "clazz");
+		this.loader = Objects.requireNonNull(loader, "loader");
+		this.writer = Objects.requireNonNull(writer, "writer");
 		this.def = def;
 		this.value = value;
 	}
 	
 	@Override
 	public String save() {
-		return getWriter().write(get());
+		return getWriter().writeNullAware(get());
 	}
 	
 	@Override
 	public void load(String str) throws IOException {
-		set(getLoader().load(str, get()));
+		set(getLoader().loadNullAware(str, get()));
 	}
 	
 	public T get() {

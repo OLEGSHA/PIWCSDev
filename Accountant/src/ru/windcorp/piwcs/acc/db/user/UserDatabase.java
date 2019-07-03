@@ -16,47 +16,20 @@
  */
 package ru.windcorp.piwcs.acc.db.user;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.time.ZonedDateTime;
+import ru.windcorp.piwcs.acc.db.Database;
 
-public class UserDatabase {
-	
-	private static final Map<String, User> USERS = new HashMap<>();
-	private static Path directory;
-	
-	public synchronized static User getUser(String username) {
-		return USERS.get(username);
+public class UserDatabase extends Database<User> {
+
+	public UserDatabase(Path dir) {
+		super(User::load, dir, ".user");
 	}
 	
-	static synchronized void addUser(User user) {
-		User previous = USERS.putIfAbsent(user.getUsername(), user);
-		if (previous != null)
-			throw new IllegalArgumentException("Duplicate username: " + user + ", " + previous);
-	}
-	
-	static synchronized void removeUser(User user) {
-		USERS.remove(user.getUsername(), user);
-	}
-	
-	public static synchronized int load(Path directory) throws IOException {
-		USERS.clear();
-		for (Iterator<Path> it = Files.list(directory).filter(Files::isRegularFile).iterator(); it.hasNext();) {
-			Path path = it.next();
-			if (!path.toString().endsWith(".user")) continue;
-			User.load(path);
-		}
-		UserDatabase.directory = directory;
-		return USERS.size();
-	}
-	
-	public static synchronized void save() throws IOException {
-		for (User user : USERS.values()) {
-			user.save(user.getFile(directory));
-		}
+	public User create(String username, ZonedDateTime registerDate) {
+		User user = User.create(username, registerDate);
+		add(user);
+		return user;
 	}
 	
 }

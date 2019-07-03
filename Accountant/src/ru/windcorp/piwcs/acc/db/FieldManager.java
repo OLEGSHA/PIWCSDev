@@ -19,8 +19,11 @@ package ru.windcorp.piwcs.acc.db;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -31,11 +34,22 @@ import ru.windcorp.jputil.chars.StringUtil;
 public class FieldManager {
 	
 	public static interface FieldLoader<T> {
-		T load(String str, T current) throws IOException;
+		T load(String str, T current) throws Exception;
+		
+		default T loadNullAware(String str, T current) throws IOException {
+			if (str == null) return null;
+			try {
+				return load(str, current);
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+		}
 	}
 	
 	public static interface FieldReader<T> {
-		T read(String str) throws IOException;
+		T read(String str) throws Exception;
 		
 		default FieldLoader<T> toLoader() {
 			return (str, ignore) -> read(str);
@@ -44,6 +58,11 @@ public class FieldManager {
 	
 	public static interface FieldWriter<T> {
 		String write(T value);
+		
+		default String writeNullAware(T value) {
+			if (value == null) return null;
+			return write(value);
+		}
 	}
 	
 	public static interface FieldValue {
@@ -95,37 +114,48 @@ public class FieldManager {
 	
 	@SuppressWarnings("unchecked")
 	public static <T> FieldLoader<T> getDefaultLoader(String type, Class<T> clazz) {
-		return (FieldLoader<T>) DEFAULT_LOADERS.get(type);
+		FieldLoader<?> loader = DEFAULT_LOADERS.get(type);
+		if (loader == null && clazz.isEnum()) loader = EnumFieldReadWrite.getForClass(clazz.asSubclass(Enum.class));
+		return (FieldLoader<T>) loader;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> FieldWriter<T> getDefaultWriter(String type, Class<T> clazz) {
-		return (FieldWriter<T>) DEFAULT_WRITERS.get(type);
+		FieldWriter<?> writer = DEFAULT_WRITERS.get(type);
+		if (writer == null && clazz.isEnum()) writer = EnumFieldReadWrite.getForClass(clazz.asSubclass(Enum.class));
+		return (FieldWriter<T>) writer;
 	}
 	
 	static String getDefaultTypeName(Class<?> forClass) {
 		if (forClass.isAnonymousClass())
-			return  forClass.getName();
+			return forClass.getName();
 		return forClass.getSimpleName();
 	}
 	
 	public static void registerStandardTypes() {
+		final DateTimeFormatter dtFormatter = DateTimeFormatter.ofPattern("uuuu/MM/dd HH:mm:ss ZZZZZ");
+		
 		registerDefaultTypeReader(String.class, s -> s, s -> s);
 		registerDefaultTypeReader(UUID.class, UUID::fromString, UUID::toString);
-		registerDefaultTypeReader(ZonedDateTime.class, ZonedDateTime::parse, ZonedDateTime::toString);
+		registerDefaultTypeReader(ZonedDateTime.class,
+				declar -> dtFormatter.parse(declar, ZonedDateTime::from),
+				dtFormatter::format);
+		registerDefaultTypeReader(LocalDate.class, LocalDate::parse, LocalDate::toString);
 	}
 	
 	private final Map<String, AbstractField> fields = new TreeMap<>();
 	
-	public synchronized void load(Reader in) throws IOException {
+	public synchronized void load(Reader in, String file) throws IOException {// TODO rework with CharReader
 		try {
 			StringBuilder sb = new StringBuilder();
+			
 			while (true) {
 				String type = readWord(in, sb);
 				if (type == null) break;
 				String name = readWord(in, sb);
 				if (name == null)
 					throw new IOException("No name for last field of type " + type);
+				readNameValueSeparator(in, type, name);
 				String declar = readValue(in, sb, type, name);
 				
 				AbstractField field = fields.get(name);
@@ -145,20 +175,16 @@ public class FieldManager {
 					throw new IOException("Field " + field + " has invalid value", e);
 				}
 			}
+
+			for (AbstractField field : fields.values()) {
+				field.onAllFieldsLoaded();
+			}
 		} catch (Exception e) {
 			for (AbstractField field : fields.values()) {
 				field.setLoadFlag(false);
 			}
 			
-			if (e instanceof IOException) {
-				throw (IOException) e;
-			}
-			
-			throw new IOException(e);
-		}
-
-		for (AbstractField field : fields.values()) {
-			field.onAllFieldsLoaded();
+			throw new IOException("Could not load file " + file, e);
 		}
 	}
 	
@@ -179,23 +205,31 @@ public class FieldManager {
 		return StringUtil.resetStringBuilder(sb);
 	}
 	
-	private static String readValue(Reader reader, StringBuilder sb, String readingType, String readingName) throws IOException {
+	private static void readNameValueSeparator(Reader reader, String readingType, String readingName) throws IOException {
 		int c;
 		
 		while (true) {
 			c = reader.read();
 			if (c == -1)
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax ('=' is missing)");;
+				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax ('=' is missing)");
 			if (!Character.isWhitespace(c)) break;
 		}
 		
 		if (c != '=')
 			throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax ('=' is missing)");
+	}
+	
+	public static String readValue(Reader declar, String type, String name) throws IOException {
+		return readValue(declar, new StringBuilder(), type, name);
+	}
+	
+	public static String readValue(Reader reader, StringBuilder sb, String readingType, String readingName) throws IOException {
+		int c;
 		
 		while (true) {
 			c = reader.read();
 			if (c == -1)
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (value is missing)");;
+				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (value is missing)");
 			if (!Character.isWhitespace(c)) break;
 		}
 		
@@ -284,7 +318,7 @@ public class FieldManager {
 		}
 	}
 	
-	private static void writeValue(Writer out, String declar) throws IOException {
+	public static void writeValue(Writer out, String declar) throws IOException {
 		if (declar == null) {
 			out.write("null");
 			return;
@@ -311,6 +345,7 @@ public class FieldManager {
 				case '\n':
 				case '\r':
 				case '\0':
+				case ';':
 					quote = true;
 					break search;
 				default:
@@ -370,10 +405,22 @@ public class FieldManager {
 		return new DoubleFieldBuilder(this);
 	}
 	
+	public <T extends AbstractField> FieldListBuilder<T> newFieldList(AbstractFieldBuilder<T> fieldBuilder) {
+		return new FieldListBuilder<>(fieldBuilder, this);
+	}
+	
 	synchronized void addField(AbstractField field) {
 		if (this.fields.putIfAbsent(field.getName(), field) != null) {
 			throw new IllegalArgumentException("Field " + field + " has a duplicate name");
 		}
+	}
+	
+	public Collection<AbstractField> getFields() {
+		return this.fields.values();
+	}
+	
+	public AbstractField getField(String name) {
+		return this.fields.get(name);
 	}
 
 }

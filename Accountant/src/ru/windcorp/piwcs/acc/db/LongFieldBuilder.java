@@ -18,7 +18,7 @@ package ru.windcorp.piwcs.acc.db;
 
 import java.util.function.LongSupplier;
 
-public class LongFieldBuilder {
+public class LongFieldBuilder implements AbstractFieldBuilder<LongField> {
 	
 	private final FieldManager manager;
 	
@@ -26,8 +26,12 @@ public class LongFieldBuilder {
 	private Long initial = null;
 	private boolean isRequired = true;
 	
-	public LongFieldBuilder(FieldManager manager) {
+	LongFieldBuilder(FieldManager manager) {
 		this.manager = manager;
+	}
+	
+	public LongFieldBuilder() {
+		this(null);
 	}
 	
 	public LongFieldBuilder initial(long value) {
@@ -67,6 +71,7 @@ public class LongFieldBuilder {
 		return this;
 	}
 
+	@Override
 	public LongField name(String name) {
 		if (initial == null) {
 			if (def != null) initial = def.getAsLong();
@@ -74,8 +79,16 @@ public class LongFieldBuilder {
 		}
 		
 		LongField field = new LongField(name, isRequired, initial, def);
-		manager.addField(field);
+		if (manager != null) manager.addField(field);
 		return field;
+	}
+	
+	/**
+	 * @see ru.windcorp.piwcs.acc.db.AbstractFieldBuilder#getType()
+	 */
+	@Override
+	public String getType() {
+		return LongField.TYPE;
 	}
 	
 }

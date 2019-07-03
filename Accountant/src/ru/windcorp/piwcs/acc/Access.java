@@ -20,6 +20,8 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.functions.ThrowingRunnable;
+import ru.windcorp.jputil.functions.ThrowingSupplier;
 import ru.windcorp.piwcs.acc.Agent.AccessLevel;
 
 public class Access {
@@ -48,16 +50,6 @@ public class Access {
 	
 	public static void end(Agent agent) {
 		while (STACKS.get().pop() != agent);
-	}
-	
-	@FunctionalInterface
-	public static interface ThrowingSupplier<T, E extends Exception> {
-		T get() throws E;
-	}
-	
-	@FunctionalInterface
-	public static interface ThrowingRunnable<E extends Exception> {
-		void run() throws E;
 	}
 	
 	public static <T> T run(Agent agent, Supplier<T> action) {

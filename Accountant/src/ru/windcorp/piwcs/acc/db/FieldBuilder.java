@@ -23,7 +23,7 @@ import ru.windcorp.piwcs.acc.db.FieldManager.FieldReader;
 import ru.windcorp.piwcs.acc.db.FieldManager.FieldValue;
 import ru.windcorp.piwcs.acc.db.FieldManager.FieldWriter;
 
-public class FieldBuilder<T> {
+public class FieldBuilder<T> implements AbstractFieldBuilder<Field<T>> {
 	
 	private final Class<T> clazz;
 	private final FieldManager manager;
@@ -38,9 +38,13 @@ public class FieldBuilder<T> {
 	
 	private boolean isRequired = true;
 	
-	public FieldBuilder(Class<T> clazz, FieldManager manager) {
+	FieldBuilder(Class<T> clazz, FieldManager manager) {
 		this.clazz = clazz;
 		this.manager = manager;
+	}
+	
+	public FieldBuilder(Class<T> clazz) {
+		this(clazz, null);
 	}
 	
 	public FieldBuilder<T> io(FieldLoader<T> loader, FieldWriter<T> writer) {
@@ -106,13 +110,19 @@ public class FieldBuilder<T> {
 		return this;
 	}
 	
+	public FieldBuilder<T> optionalNull() {
+		optional((T) null);
+		return this;
+	}
+	
 	public FieldBuilder<T> required() {
 		this.isRequired = true;
 		return this;
 	}
 
+	@Override
 	public Field<T> name(String name) {
-		if (type == null) type = FieldManager.getDefaultTypeName(clazz);
+		getType();
 		
 		if (loader == null || writer == null) {
 			if (loader != null || writer != null) {
@@ -136,8 +146,17 @@ public class FieldBuilder<T> {
 		}
 		
 		Field<T> field = new Field<>(name, type, clazz, loader, writer, def, isRequired, initial);
-		manager.addField(field);
+		if (manager != null) manager.addField(field);
 		return field;
+	}
+	
+	/**
+	 * @see ru.windcorp.piwcs.acc.db.AbstractFieldBuilder#getType()
+	 */
+	@Override
+	public String getType() {
+		if (type == null) type = FieldManager.getDefaultTypeName(clazz);
+		return type;
 	}
 	
 }

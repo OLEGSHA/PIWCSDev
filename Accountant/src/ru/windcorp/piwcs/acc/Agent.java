@@ -16,19 +16,34 @@
  */
 package ru.windcorp.piwcs.acc;
 
-public interface Agent {
-	
+import ru.windcorp.jputil.Nameable;
+import ru.windcorp.jputil.cmd.CommandRunner;
+
+public abstract class Agent extends Nameable implements CommandRunner {
+
 	public static enum AccessLevel {
 		PLAYER,
 		MODERATOR,
 		ADMIN
 	}
 	
-	void sendMessage(String msg);
-	AccessLevel getAccessLevel();
+	private final AccessLevel accessLevel;
 	
-	default boolean hasAccessLevel(AccessLevel lvl) {
+	public Agent(String name, AccessLevel accessLevel) {
+		super(name);
+		this.accessLevel = accessLevel;
+	}
+
+	public AccessLevel getAccessLevel() {
+		return accessLevel;
+	}
+	
+	public boolean hasAccessLevel(AccessLevel lvl) {
 		return getAccessLevel().compareTo(lvl) > 0;
+	}
+	
+	public void runCommand(String rawInput) {
+		Accountant.getCommandSystem().runCommand(this, rawInput);
 	}
 
 }

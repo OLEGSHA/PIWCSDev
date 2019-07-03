@@ -17,6 +17,7 @@
 package ru.windcorp.piwcs.acc.db;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public abstract class AbstractField {
 
@@ -28,7 +29,7 @@ public abstract class AbstractField {
 
 	protected AbstractField(String name, String type, boolean isRequired) {
 		this.name = name;
-		this.type = type;
+		this.type = Objects.requireNonNull(type, "type");
 		this.isRequired = isRequired;
 	}
 

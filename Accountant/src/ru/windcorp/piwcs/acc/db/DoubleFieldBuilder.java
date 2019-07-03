@@ -18,7 +18,7 @@ package ru.windcorp.piwcs.acc.db;
 
 import java.util.function.DoubleSupplier;
 
-public class DoubleFieldBuilder {
+public class DoubleFieldBuilder implements AbstractFieldBuilder<DoubleField> {
 	
 	private final FieldManager manager;
 	
@@ -26,8 +26,12 @@ public class DoubleFieldBuilder {
 	private Double initial = null;
 	private boolean isRequired = true;
 	
-	public DoubleFieldBuilder(FieldManager manager) {
+	DoubleFieldBuilder(FieldManager manager) {
 		this.manager = manager;
+	}
+	
+	public DoubleFieldBuilder() {
+		this(null);
 	}
 	
 	public DoubleFieldBuilder initial(double value) {
@@ -67,6 +71,7 @@ public class DoubleFieldBuilder {
 		return this;
 	}
 
+	@Override
 	public DoubleField name(String name) {
 		if (initial == null) {
 			if (def != null) initial = def.getAsDouble();
@@ -74,8 +79,16 @@ public class DoubleFieldBuilder {
 		}
 		
 		DoubleField field = new DoubleField(name, isRequired, initial, def);
-		manager.addField(field);
+		if (manager != null) manager.addField(field);
 		return field;
+	}
+	
+	/**
+	 * @see ru.windcorp.piwcs.acc.db.AbstractFieldBuilder#getType()
+	 */
+	@Override
+	public String getType() {
+		return DoubleField.TYPE;
 	}
 	
 }

@@ -18,7 +18,7 @@ package ru.windcorp.piwcs.acc.db;
 
 import java.util.function.IntSupplier;
 
-public class IntFieldBuilder {
+public class IntFieldBuilder implements AbstractFieldBuilder<IntField> {
 	
 	private final FieldManager manager;
 	
@@ -26,8 +26,12 @@ public class IntFieldBuilder {
 	private Integer initial = null;
 	private boolean isRequired = true;
 	
-	public IntFieldBuilder(FieldManager manager) {
+	IntFieldBuilder(FieldManager manager) {
 		this.manager = manager;
+	}
+	
+	public IntFieldBuilder() {
+		this(null);
 	}
 	
 	public IntFieldBuilder initial(int value) {
@@ -67,6 +71,7 @@ public class IntFieldBuilder {
 		return this;
 	}
 
+	@Override
 	public IntField name(String name) {
 		if (initial == null) {
 			if (def != null) initial = def.getAsInt();
@@ -74,8 +79,16 @@ public class IntFieldBuilder {
 		}
 		
 		IntField field = new IntField(name, isRequired, initial, def);
-		manager.addField(field);
+		if (manager != null) manager.addField(field);
 		return field;
+	}
+	
+	/**
+	 * @see ru.windcorp.piwcs.acc.db.AbstractFieldBuilder#getType()
+	 */
+	@Override
+	public String getType() {
+		return IntField.TYPE;
 	}
 	
 }
