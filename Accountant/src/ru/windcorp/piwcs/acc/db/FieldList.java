@@ -18,11 +18,13 @@
 package ru.windcorp.piwcs.acc.db;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+
+import ru.windcorp.jputil.chars.reader.CharReader;
+import ru.windcorp.jputil.chars.reader.CharReaders;
 
 /**
  * @author Javapony
@@ -77,36 +79,35 @@ public class FieldList<T extends AbstractField> extends AbstractField {
 		List<T> data = getFields();
 		data.clear();
 		
-		StringReader reader = new StringReader(str);
-		int c;
+		CharReader in = CharReaders.wrap(str);
 		
-		do {
-			c = reader.read();
-			if (c == -1)
-				throw new IOException("Invalid List declaration: '{' expected, end of declaration encountered");
-		} while (Character.isWhitespace(c));
-		
-		if (c != '{')
-			throw new IOException("Invalid List declaration: '{' expected, '" + ((char) c) + "' encountered");
+		in.skipWhitespace();
+		if (in.isEnd()) throw new IOException("Invalid List declaration: '{' expected, end of declaration encountered");
+		if (in.current() != '{')
+			throw new IOException("Invalid List declaration: '{' expected, '" + in.current() + "' encountered");
 		
 		int i = 0;
 		while (true) {
-			c = reader.read();
+			in.next();
+			in.skipWhitespace();
 			
-			if (c == -1)
+			if (in.isEnd())
 				throw new IOException("Invalid List declaration: '}' or value expected, end of declaration encountered");
 			
-			if (c == '}') break;
+			if (in.current() == '}') break;
 			
-			if (c == ';')
+			if (in.current() == ';')
 				throw new IOException("Invalid List declaration: '}' or value expected, ';' encountered");
 			
-			if (Character.isWhitespace(c)) continue;
-			
 			T field = newEntry();
-			String declar = FieldManager.readValue(reader, field.getType(), getName() + "[" + i + "]");// FIXME first character is dismissed
+			String declar = FieldManager.readValue(in, field.getType() + " " + getName() + "[" + i + "]", ';');// TODO first character is dismissed
 			field.load(declar);
 			data.add(field);
+		}
+		
+		in.skipWhitespace();
+		if (in.next() != CharReader.DONE) {
+			throw new IOException("Invalid List declaration: encountered excessive characters after '}'");
 		}
 	}
 	

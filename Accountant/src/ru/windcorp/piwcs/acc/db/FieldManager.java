@@ -29,7 +29,11 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
-import ru.windcorp.jputil.chars.StringUtil;
+import ru.windcorp.jputil.chars.CharPredicate;
+import ru.windcorp.jputil.chars.EscapeException;
+import ru.windcorp.jputil.chars.Escaper;
+import ru.windcorp.jputil.chars.reader.CharReader;
+import ru.windcorp.jputil.chars.reader.CharReaders;
 
 public class FieldManager {
 	
@@ -76,6 +80,8 @@ public class FieldManager {
 	};
 	
 	private static final FieldWriter<?> SELF_WRITER = value -> ((FieldValue) value).save();
+	
+	private static final Escaper ESCAPER = Escaper.JAVA;
 	
 	@SuppressWarnings("unchecked")
 	static final <T> FieldLoader<T> selfLoader() {
@@ -145,28 +151,29 @@ public class FieldManager {
 	
 	private final Map<String, AbstractField> fields = new TreeMap<>();
 	
-	public synchronized void load(Reader in, String file) throws IOException {// TODO rework with CharReader
+	public synchronized void load(Reader reader, String file) throws IOException {
+		CharReader in = CharReaders.wrap(reader);
+		
 		try {
-			StringBuilder sb = new StringBuilder();
-			
-			while (true) {
-				String type = readWord(in, sb);
-				if (type == null) break;
-				String name = readWord(in, sb);
-				if (name == null)
-					throw new IOException("No name for last field of type " + type);
-				readNameValueSeparator(in, type, name);
-				String declar = readValue(in, sb, type, name);
+			while (in.has()) {
+				String type = new String(in.readWord());
+				if (type.length() == 0) break;
+				String name = new String(in.readWord());
+				if (name.length() == 0)
+					throw new IOException("No name for last field of type " + type, in.getLastException());
+				readNameValueSeparator(in, type + " " + name);
+				String declar = readValue(in, type + " " + name, ';');
 				
 				AbstractField field = fields.get(name);
 				if (field == null)
 					throw new IOException("No field named " + name);
 				
 				if (!field.getType().equals(type))
-					throw new IOException("Field " + field + " is annotated as having type " + type);
+					throw new IOException("Field " + field + " is annotated as having type " + type,
+							in.getLastException());
 				
 				if (field.getLoadFlag())
-					throw new IOException("Field " + field + " has multiple annotations");
+					throw new IOException("Field " + field + " has multiple annotations", in.getLastException());
 				
 				try {
 					field.load(declar);
@@ -175,7 +182,7 @@ public class FieldManager {
 					throw new IOException("Field " + field + " has invalid value", e);
 				}
 			}
-
+	
 			for (AbstractField field : fields.values()) {
 				field.onAllFieldsLoaded();
 			}
@@ -186,110 +193,63 @@ public class FieldManager {
 			
 			throw new IOException("Could not load file " + file, e);
 		}
+		
+		if (in.hasErrored()) throw in.getLastException();
 	}
 	
-	private static String readWord(Reader reader, StringBuilder sb) throws IOException {
-		int c;
-		
-		while (true) {
-			c = reader.read();
-			if (c == -1) return null;
-			if (!Character.isWhitespace(c)) break;
-		}
-		
-		do {
-			sb.append((char) c);
-			c = reader.read();
-		} while (c != -1 && !Character.isWhitespace(c));
-		
-		return StringUtil.resetStringBuilder(sb);
+	private static void readNameValueSeparator(CharReader in, String desc) throws IOException {
+		in.skipWhitespace();
+		if (in.consume() != '=')
+			throw invalidSyntax(desc, "'=' is missing", in.getLastException());
 	}
 	
-	private static void readNameValueSeparator(Reader reader, String readingType, String readingName) throws IOException {
-		int c;
+	private static final CharPredicate ESCAPER_UNTIL = CharPredicate.forArray('\"', '\n', '\r');
+	public static String readValue(CharReader in, String desc, char until) throws IOException {
+		in.skipWhitespace();
+		if (in.isEnd())
+			throw invalidSyntax(desc, "value is missing", in.getLastException());
 		
-		while (true) {
-			c = reader.read();
-			if (c == -1)
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax ('=' is missing)");
-			if (!Character.isWhitespace(c)) break;
-		}
-		
-		if (c != '=')
-			throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax ('=' is missing)");
-	}
-	
-	public static String readValue(Reader declar, String type, String name) throws IOException {
-		return readValue(declar, new StringBuilder(), type, name);
-	}
-	
-	public static String readValue(Reader reader, StringBuilder sb, String readingType, String readingName) throws IOException {
-		int c;
-		
-		while (true) {
-			c = reader.read();
-			if (c == -1)
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (value is missing)");
-			if (!Character.isWhitespace(c)) break;
-		}
-		
-		if (c == '\"') {
-			while (true) {
-				c = reader.read();
-				switch (c) {
-				case -1:
-					throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (quoted value not closed)");
-				case '\"':
-					if (reader.read() != ';')
-						throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (';' not found)");
-					return StringUtil.resetStringBuilder(sb);
-				case '\\':
-					c = reader.read();
-					switch (c) {
-					case -1:
-						throw new IOException("Field " + readingType + " " + readingName
-								+ " has invalid syntax (quoted value not closed and invalid escape sequence)");
-					case '0':
-						sb.append('\0');
-						break;
-					case 'n':
-						sb.append('\n');
-						break;
-					case 'r':
-						sb.append('\r');
-						break;
-					default:
-						sb.append((char) c);
-						break;
-					}
-					break;
-				case '\n':
-				case '\r':
-					throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (quoted value contains newlines)");
-				default:
-					sb.append((char) c);
-				}
+		if (in.current() == '\"') {
+			try {
+				in.next();
+				String result = new String(ESCAPER.unescape(in, ESCAPER_UNTIL));
+				if (in.consume() != '\"')
+					throw invalidSyntax(desc, "quoted value not closed", in.getLastException());
+				in.skipWhitespace();
+				if (in.consume() != until)
+					throw invalidSyntax(desc, "'" + until + "' not found", in.getLastException());
+				return result;
+			} catch (EscapeException e) {
+				throw invalidSyntax(desc, "quoted value contains invalid escape sequence", e);
 			}
 		}
 		
-		while (true) {
-			switch (c) {
-			case -1:
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (';' not found)");
-			case ';':
-				String result = StringUtil.resetStringBuilder(sb);
-				if ("null".equals(result)) {
-					return null;
-				}
-				return result;
+		int length = 0;
+		in.mark();
+		while (in.current() != until) {
+			switch (in.current()) {
+			case CharReader.DONE:
+				throw invalidSyntax(desc, "'" + until + "' not found", in.getLastException());
 			case '\n':
 			case '\r':
-				throw new IOException("Field " + readingType + " " + readingName + " has invalid syntax (value contains newlines)");
+				throw invalidSyntax(desc, "value contains newlines", in.getLastException());
 			default:
-				sb.append((char) c);
+				length++;
 			}
-			c = reader.read();
+			in.next();
 		}
+		in.reset();
+
+		String result = in.getString(length);
+		in.next();
+		if ("null".equals(result)) {
+			return null;
+		}
+		return result;
+	}
+	
+	private static IOException invalidSyntax(String desc, String msg, Exception cause) {
+		return new IOException("Field " + desc + " has invalid syntax (" + msg + ")", cause);
 	}
 	
 	public synchronized void save(Writer out) throws IOException {
@@ -339,19 +299,18 @@ public class FieldManager {
 			
 			search:
 			for (char c : chars) {
-				switch (c) {
-				case '\\':
-				case '\"':
-				case '\n':
-				case '\r':
-				case '\0':
-				case ';':
+				if (c == ';') {
 					quote = true;
 					break search;
-				default:
-					trailingIsWhitespace = Character.isWhitespace(c);
-					continue search;
 				}
+				for (char u : ESCAPER.getUnsafes()) {
+					if (c == u) {
+						quote = true;
+						break search;
+					}
+				}
+				trailingIsWhitespace = Character.isWhitespace(c);
+				continue search;
 			}
 			
 			if (trailingIsWhitespace)
@@ -360,29 +319,7 @@ public class FieldManager {
 		
 		if (quote) {
 			out.write('\"');
-			
-			for (char c : chars) {
-				switch (c) {
-				case '\\':
-				case '\"':
-					out.write('\\');
-					out.write(c);
-					break;
-				case '\n':
-					out.write("\\n");
-					break;
-				case '\r':
-					out.write("\\r");
-					break;
-				case '\0':
-					out.write("\\0");
-					break;
-				default:
-					out.write(c);
-					break;
-				}
-			}
-			
+			out.write(ESCAPER.escape(CharReaders.wrap(declar)));
 			out.write('\"');
 		} else {
 			out.write(chars);

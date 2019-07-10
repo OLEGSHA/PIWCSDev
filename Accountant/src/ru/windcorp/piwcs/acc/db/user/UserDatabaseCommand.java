@@ -39,7 +39,7 @@ public class UserDatabaseCommand extends DatabaseCommand<User> {
 	public UserDatabaseCommand() {
 		super(Accountant.getUsers(), new String[] {"users", "u"}, "User database", new String[] {"username"});
 		
-		add(AutoCommand.forMethod(UserDatabaseCommand.class, "add").desc("Adds new user").parser("<word USERNAME>", null));
+		add(AutoCommand.forMethod(this, "add").desc("Adds new user").parser("<word USERNAME>", null));
 		
 		// TODO create user DB handling interface
 	}

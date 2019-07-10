@@ -23,7 +23,7 @@ import ru.windcorp.piwcs.acc.db.Database;
 public class UserDatabase extends Database<User> {
 
 	public UserDatabase(Path dir) {
-		super(User::load, dir, ".user");
+		super(User::load, dir, ".user.txt");
 	}
 	
 	public User create(String username, ZonedDateTime registerDate) {

@@ -30,7 +30,7 @@ import ru.windcorp.piwcs.acc.db.Database;
 public class ModDatabase extends Database<Modification> {
 
 	public ModDatabase(Path dir) {
-		super(Modification::load, dir, ".mod");
+		super(Modification::load, dir, ".mod.txt");
 	}
 	
 	public Modification add(
