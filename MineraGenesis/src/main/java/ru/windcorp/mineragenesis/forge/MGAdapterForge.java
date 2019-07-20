@@ -94,20 +94,20 @@ public class MGAdapterForge {
 		Chunk chunk = findChunk(chunkLocator);
 		
 		int[] heightMap = output.getHeightMap();
-		System.arraycopy(chunk.heightMap, 0, heightMap, 0, chunk.heightMap.length);
-		
 		int topFilledSegment = chunk.getTopFilledSegment() >> 4; // This method actually returns the top segment's Y position
 		ExtendedBlockStorage[] segments = chunk.getBlockStorageArray();
 		
 		/*
 		 * We iterate over segments, then over y-layers in each segment, then over x, then over z.
-		 * We skip blocks that are beyond heightmap values. We also stop if we get over heightmap
-		 * maximum. Finally, we also compute MGIDs by hand to bypass Block lookups and stuff.
+		 * We stop if we get over heightmap maximum. Finally, we also compute MGIDs by hand to
+		 * bypass Block lookups and stuff.
 		 * 
 		 * All craftsmanship is of the highest quality. No need to change anything here.
 		 * I hope.
 		 *
 		 * May God have mercy on your soul if you still have to dig into this.
+		 * 
+		 * 20.07.2019: Nope! Fixin' mah heightmaps. MC's HMs are a lie. Trust no one.
 		 */
 		
 		int yAbs = 0;
@@ -126,32 +126,24 @@ public class MGAdapterForge {
 			
 			for (int y = 0; y < CHUNK_SEGMENT_SIZE; ++y, ++yAbs) {
 				
-				boolean blocksFoundOnLayer = false;
-				
 				for (int x = 0; x < ChunkData.CHUNK_SIZE; ++x) {
-					blockLoop:
 					for (int z = 0; z < ChunkData.CHUNK_SIZE; ++z) {
+
+						// Most Significant Byte (blockIdMSBArray may be null)
+						int idMSB = (blockIdMSBArray == null) ? 0 : blockIdMSBArray.get(x, y, z);
+
+						// Least Significant Byte
+						int idLSB = blockIdLSBArray[(y << 8) | (z << 4) | (x)] & 0xFF;
 						
-						if (heightMap[(z << 4) | x] <= yAbs) {
-							// In ChunkData, block data that is beyond heightmap values is never used - no need to set it
-							continue blockLoop;
+						if ((idLSB | idMSB) != 0) { // If is not air
+							heightMap[(z << 4) | x] = yAbs;
 						}
-						
-						blocksFoundOnLayer = true;
 						
 						output.setBlock(x, z, yAbs, (short) (
 								
 								// ID
 								((
-										
-										// Most Significant Byte (blockIdMSBArray may be null)
-										(blockIdMSBArray == null
-												? 0
-												: blockIdMSBArray.get(x, y, z) << Byte.SIZE)
-										
-										// Least Significant Byte
-										| (blockIdLSBArray[(y << 8) | (z << 4) | (x)] & 0xFF)
-										
+										idMSB << Byte.SIZE | idLSB
 								) << ChunkData.METADATA_SIZE)
 								
 								// Metadata
@@ -162,10 +154,6 @@ public class MGAdapterForge {
 					}
 				}
 				
-				// Whoops! No blocks on this layer are in heightmap. We can stop
-				if (!blocksFoundOnLayer) {
-					break copyBlockData;
-				}
 			}
 		}
 	}
