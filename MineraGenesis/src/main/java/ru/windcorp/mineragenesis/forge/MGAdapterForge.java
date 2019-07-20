@@ -189,6 +189,7 @@ public class MGAdapterForge {
 		
 		chunk.setStorageArrays(request.getData());
 		chunk.setChunkModified();
+		chunk.enqueueRelightChecks();
 		markChunkForSending(chunk);
 	}
 	
