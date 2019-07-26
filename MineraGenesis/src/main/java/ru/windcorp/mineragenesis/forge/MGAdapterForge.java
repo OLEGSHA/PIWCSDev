@@ -67,13 +67,14 @@ public class MGAdapterForge {
 						// Hackidy-hacky. Going to recalculate refCounts later...
 						if (id > 0xFF) {
 							if (blockIdMSBArray == null) {
-								blockIdMSBArray = current.createBlockMSBArray();
+								blockIdMSBArray = new NibbleArray(blockIdLSBArray.length, 4);
+								current.setBlockMSBArray(blockIdMSBArray);
 							}
 							
-							blockIdMSBArray.set(x, y, z, id >> Byte.SIZE);
+							blockIdMSBArray.set(x, y, z, (id & 0xF00) >> Byte.SIZE);
 						}
 						
-						blockIdLSBArray[y << 8 | z << 4 | x] = (byte) id;
+						blockIdLSBArray[y << 8 | z << 4 | x] = (byte) (id & 0x0FF);
 						
 						blockMetadataArray.set(x, y, z, meta);
 						
@@ -133,23 +134,17 @@ public class MGAdapterForge {
 						int idMSB = (blockIdMSBArray == null) ? 0 : blockIdMSBArray.get(x, y, z);
 
 						// Least Significant Byte
-						int idLSB = blockIdLSBArray[(y << 8) | (z << 4) | (x)] & 0xFF;
+						int idLSB = blockIdLSBArray[y << 8 | z << 4 | x] & 0xFF;
 						
-						if ((idLSB | idMSB) != 0) { // If is not air
-							heightMap[(z << 4) | x] = yAbs;
+						int id = idMSB << Byte.SIZE | idLSB;
+						
+						if (id != 0) { // If is not air
+							heightMap[z << 4 | x] = yAbs;
 						}
+
+						int meta = blockMetadataArray.get(x, y, z);
 						
-						output.setBlock(x, z, yAbs, (short) (
-								
-								// ID
-								((
-										idMSB << Byte.SIZE | idLSB
-								) << ChunkData.METADATA_SIZE)
-								
-								// Metadata
-								| blockMetadataArray.get(x, y, z)
-								
-								));
+						output.setBlock(x, z, yAbs, (short) (id << ChunkData.METADATA_SIZE | meta));
 						
 					}
 				}
@@ -175,7 +170,7 @@ public class MGAdapterForge {
 			generated[i].setSkylightArray(previous[i].getSkylightArray());
 		}
 		
-		chunk.setStorageArrays(request.getData());
+		chunk.setStorageArrays(generated);
 		chunk.setChunkModified();
 		chunk.enqueueRelightChecks();
 		markChunkForSending(chunk);

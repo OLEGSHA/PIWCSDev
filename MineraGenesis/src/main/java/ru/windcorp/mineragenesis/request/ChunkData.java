@@ -36,7 +36,7 @@ public class ChunkData {
 	}
 
 	public int getBlockId(int x, int z, int y) {
-		return getBlockMGId(x, z, y) >> METADATA_SIZE; // Bits: 1111 1111 1111 0000
+		return getBlockMGId(x, z, y) >>> METADATA_SIZE; // Bits: 1111 1111 1111 0000
 	}
 	
 	public int getBlockMetadata(int x, int z, int y) {
@@ -66,7 +66,7 @@ public class ChunkData {
 	}
 	
 	public static int getId(short mgId) {
-		return mgId >> METADATA_SIZE; // Bits: 1111 1111 1111 0000
+		return mgId >>> METADATA_SIZE; // Bits: 1111 1111 1111 0000
 	}
 	
 	public static int getMeta(short mgId) {
