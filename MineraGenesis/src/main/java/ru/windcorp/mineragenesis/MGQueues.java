@@ -43,8 +43,9 @@ public class MGQueues {
 		}
 		
 		ChunkLocator chunk = new ChunkLocator(dimension, chunkX, chunkZ);
-		MGQueueLog.add(chunk);
-		queueImportRequest(chunk);
+		if (MGQueueLog.add(chunk)) {
+			queueImportRequest(chunk);
+		}
 	}
 	
 	static void queueImportRequest(ChunkLocator chunk) {

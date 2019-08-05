@@ -135,10 +135,10 @@ public class MGQueueLog {
 		}
 	}
 	
-	public static void add(ChunkLocator chunk) {
+	public static boolean add(ChunkLocator chunk) {
 		if (!pending.add(chunk)) {
-			MineraGenesis.logger.logf("%s has been added to queue log twice, is everything OK? Ignoring", chunk);
-			return;
+			MineraGenesis.logger.debug("%s has been added to queue log twice, is everything OK? Ignoring", chunk);
+			return false;
 		}
 
 		synchronized (MGQueueLog.class) {
@@ -148,11 +148,13 @@ public class MGQueueLog {
 				handleUnrecoverableException(e);
 			}
 		}
+		
+		return true;
 	}
 
 	public static void remove(ChunkLocator chunk) {
 		if (!pending.remove(chunk)) {
-			MineraGenesis.logger.logf("%s has not been present queue log but its removal was requested, is everything OK? Ignoring", chunk);
+			MineraGenesis.logger.debug("%s has not been present queue log but its removal was requested, is everything OK? Ignoring", chunk);
 			return;
 		}
 		

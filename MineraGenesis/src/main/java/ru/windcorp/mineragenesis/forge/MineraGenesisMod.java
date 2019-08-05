@@ -65,13 +65,13 @@ public class MineraGenesisMod {
 	
 	@Mod.EventHandler
 	public void onInit(FMLInitializationEvent event) {
-		MineraGenesis.loadConfig();
-		MineraGenesis.attemptEarlyAddonInit();
+		// Do nothing
 	}
 	
 	@Mod.EventHandler
 	public void onPostInit(FMLPostInitializationEvent event) {
-		// Do nothing
+		MineraGenesis.loadConfig();
+		MineraGenesis.attemptEarlyAddonInit();
 	}
 	
 	@Mod.EventHandler

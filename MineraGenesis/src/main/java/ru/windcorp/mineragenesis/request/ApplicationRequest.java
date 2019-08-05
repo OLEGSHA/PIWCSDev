@@ -34,4 +34,9 @@ public abstract class ApplicationRequest {
 		return chunk;
 	}
 
+	@Override
+	public String toString() {
+		return "ApplicationRequest[requestId=" + requestId + ", chunk=" + chunk + "]";
+	}
+
 }

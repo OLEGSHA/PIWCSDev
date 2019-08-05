@@ -14,6 +14,8 @@
  */
 package ru.windcorp.mineragenesis.forge;
 
+import java.util.Arrays;
+
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -49,6 +51,7 @@ public class MGAdapterForge {
 			result[i] = current;
 			byte[] blockIdLSBArray = current.getBlockLSBArray();
 			NibbleArray blockIdMSBArray = current.getBlockMSBArray();
+			boolean shouldISetBlockIdMSBArray = false;
 			NibbleArray blockMetadataArray = current.getMetadataArray();
 			
 			for (int y = 0; y < CHUNK_SEGMENT_SIZE; ++y, ++yAbs) {
@@ -68,7 +71,7 @@ public class MGAdapterForge {
 						if (id > 0xFF) {
 							if (blockIdMSBArray == null) {
 								blockIdMSBArray = new NibbleArray(blockIdLSBArray.length, 4);
-								current.setBlockMSBArray(blockIdMSBArray);
+								shouldISetBlockIdMSBArray = true;
 							}
 							
 							blockIdMSBArray.set(x, y, z, (id & 0xF00) >> Byte.SIZE);
@@ -81,6 +84,9 @@ public class MGAdapterForge {
 					}
 				}
 			}
+			
+			if (shouldISetBlockIdMSBArray)
+				current.setBlockMSBArray(blockIdMSBArray);
 			
 			// ... Here.
 			// Bottleneck (Block lookup *16*16*16)?
@@ -112,11 +118,13 @@ public class MGAdapterForge {
 		 */
 		
 		int yAbs = 0;
+		boolean wasMSBPresent = false;
 		
 		copyBlockData:
 		for (int chunkSegment = 0; chunkSegment <= topFilledSegment; ++chunkSegment) {
 			
 			if (segments[chunkSegment] == null) {
+				yAbs += CHUNK_SEGMENT_SIZE;
 				continue copyBlockData;
 			}
 			
@@ -124,6 +132,8 @@ public class MGAdapterForge {
 			byte[] blockIdLSBArray = segments[chunkSegment].getBlockLSBArray();
 			NibbleArray blockIdMSBArray = segments[chunkSegment].getBlockMSBArray();
 			NibbleArray blockMetadataArray = segments[chunkSegment].getMetadataArray();
+			
+			wasMSBPresent |= blockIdMSBArray != null;
 			
 			for (int y = 0; y < CHUNK_SEGMENT_SIZE; ++y, ++yAbs) {
 				
@@ -150,6 +160,10 @@ public class MGAdapterForge {
 				}
 				
 			}
+		}
+		
+		if (!wasMSBPresent) {
+			MineraGenesis.logger.logf("%s: no MSBs at all", chunkLocator);
 		}
 	}
 	
@@ -207,6 +221,77 @@ public class MGAdapterForge {
 		
 		MineraGenesis.actInServerThread();
 	}
+	
+	private static enum ChunkState {
+		/**
+		 * Cache flag for {@link #populatedFlagCache} that indicates that this chunk is not yet cached.
+		 */
+		UNKNOWN,
+		
+		/**
+		 * Cache flag for {@link #populatedFlagCache} that indicates that this chunk is known to be populated already.
+		 * This is known because chunk's {@link Chunk#isTerrainPopulated} flag has been actually examined.
+		 */
+		POPULATED_ACCORDING_TO_FLAG,
+		
+		/**
+		 * Cache flag for {@link #populatedFlagCache} that indicates that this chunk exists but has not been populated yet.
+		 */
+		NOT_POPULATED,
+		
+		/**
+		 * Cache flag for {@link #populatedFlagCache} that indicates that this chunk does not exist.
+		 */
+		DOES_NOT_EXIST,
+		
+		/**
+		 * Cache flag for {@link #populatedFlagCache} that indicates that this chunk is known to be populated already.
+		 * This is known because this is the subject of the {@link PopulateChunkEvent.Post} event. 
+		 */
+		POPULATED_ACCORDING_TO_EVENT;
+
+		/**
+		 * Cache holding information about chunks surrounding a given chunk. This cache is accessed by
+		 * {@link #isChunkReady(World, AnvilChunkLoader, int, int, int, int)} and is reset by
+		 * {@link #onChunkFinishedPopulating(net.minecraftforge.event.terraingen.PopulateChunkEvent.Post)}.
+		 * Event subject chunk is always {@link ChunkState#POPULATED_ACCORDING_TO_EVENT POPULATED_ACCORDING_TO_EVENT}.
+		 */
+		static class Cache {
+			
+			private static final int RADIUS = 1;
+			private static final int SIZE = 1 + 2 * RADIUS;
+			
+			final ChunkState[] data = new ChunkState[SIZE * SIZE];
+			int offsetX, offsetZ;
+			
+			void init(int centerX, int centerZ) {
+				Arrays.fill(data, UNKNOWN);
+				this.offsetX = centerX - RADIUS;
+				this.offsetZ = centerZ - RADIUS;
+			}
+			
+			/*
+			 * Event subject chunk is manually set to be POPULATED because its isTerrainPopulated flag is unreliable.
+			 */
+			ChunkState get(int x, int z) {
+				x -= offsetX;
+				z -= offsetZ;
+				if (x == RADIUS && z == RADIUS) return ChunkState.POPULATED_ACCORDING_TO_EVENT;
+				return data[x * SIZE + z];
+			}
+			
+			void set(int x, int z, ChunkState state) {
+				x -= offsetX;
+				z -= offsetZ;
+				if (x == RADIUS && z == RADIUS)
+					throw new IllegalArgumentException("Cannot cache center chunk, requested new state " + state);
+				data[x * SIZE + z] = state;
+			}
+			
+		}
+	}
+	
+	private static final ChunkState.Cache CHUNK_STATE_CACHE = new ChunkState.Cache();
 
 	@SubscribeEvent (priority = EventPriority.LOWEST)
 	public void onChunkFinishedPopulating(PopulateChunkEvent.Post event) {
@@ -217,59 +302,109 @@ public class MGAdapterForge {
 						.currentChunkLoader
 				);
 		
-		for (int x = 0; x < 3; ++x) {
-			for (int z = 0; z < 3; ++z) {
-				populatedFlagBuffer[x][z] = UNKNOWN;
-			}
-		}
+		CHUNK_STATE_CACHE.init(event.chunkX, event.chunkZ);
 		
 		for (int x = 0; x <= 1; ++x) {
 			for (int z = 0; z <= 1; ++z) {
-				if (isChunkReady(event.world, anvilLoader, event.chunkX + x, event.chunkZ + z, x, z)) {
+				if (isChunkReady(event.world, anvilLoader, event.chunkX + x, event.chunkZ + z, CHUNK_STATE_CACHE)) {
 					MGQueues.queueImportRequest(event.world.provider.dimensionId, event.chunkX + x, event.chunkZ + z);
 				}
 			}
 		}
 	}
-	
-	private final byte[][] populatedFlagBuffer = new byte[3][3];
-	private static final byte
-			UNKNOWN = 0,
-			POPULATED = 1,
-			NOT_POPULATED = 2,
-			DOES_NOT_EXIST = 3;
 
-	private boolean isChunkReady(World world, AnvilChunkLoader anvilLoader, int chunkX, int chunkZ, int bufferX, int bufferZ) {
+	/**
+	 * Determines whether the chunk specified by <code>chunkX</code> and <code>chunkZ</code> is ready to be processed by
+	 * MineraGenesis.
+	 * @param world the {@link World} object for queries
+	 * @param anvilLoader the {@link IChunkProvider} to query for chunk existence
+	 * @param chunkX the X coordinate of the chunk to check
+	 * @param chunkZ the Z coordinate of the chunk to check
+	 * @param cache the {@link ChunkState.Cache} to use
+	 * @return whether the chunk is fit for further processing
+	 */
+	private boolean isChunkReady(World world, AnvilChunkLoader anvilLoader, int chunkX, int chunkZ, ChunkState.Cache cache) {
 		IChunkProvider provider = world.getChunkProvider();
-		int currentBufferX, currentBufferZ;
 		
-		for (int x = -1; x <= 0; ++x) {
-			currentBufferX = bufferX + x + 1;
-			for (int z = -1; z <= 0; ++z) {
-				currentBufferZ = bufferZ + z + 1;
+		for (int dx = -1; dx <= 0; ++dx) {
+			int x = chunkX + dx;
+			for (int dz = -1; dz <= 0; ++dz) {
+				int z = chunkZ + dz;
 				
-				switch (populatedFlagBuffer[currentBufferX][currentBufferZ]) {
-				case POPULATED:
+				switch (cache.get(x, z)) {
+				case POPULATED_ACCORDING_TO_FLAG:
+				case POPULATED_ACCORDING_TO_EVENT:
 					continue;
 				case NOT_POPULATED:
 				case DOES_NOT_EXIST:
 					return false;
 				case UNKNOWN:
-					if (!provider.chunkExists(chunkX + x, chunkZ + z) && !anvilLoader.chunkExists(world, chunkX + x, chunkZ + z)) {
-						populatedFlagBuffer[currentBufferX][currentBufferZ] = DOES_NOT_EXIST;
+					if (!provider.chunkExists(x, z) && !anvilLoader.chunkExists(world, x, z)) {
+						cache.set(x, z, ChunkState.DOES_NOT_EXIST);
 						return false;
 					}
-					if (!provider.provideChunk(chunkX + x, chunkZ + z).isTerrainPopulated) {
-						populatedFlagBuffer[currentBufferX][currentBufferZ] = NOT_POPULATED;
+					if (!provider.provideChunk(x, z).isTerrainPopulated) {
+						cache.set(x, z, ChunkState.NOT_POPULATED);
 						return false;
 					}
-					populatedFlagBuffer[currentBufferX][currentBufferZ] = POPULATED;
+					cache.set(x, z, ChunkState.POPULATED_ACCORDING_TO_FLAG);
 				}
 			}
 		}
 		
 		return true;
 	}
+	
+//	private boolean isChunkReady_Suspect(World world, AnvilChunkLoader anvilLoader, int chunkX, int chunkZ, ChunkState.Cache cache) {
+//		IChunkProvider provider = world.getChunkProvider();
+//		
+//		MineraGenesis.logger.logf("  CHECK x=%d z=%d", chunkX, chunkZ);
+//		
+//		for (int dx = -1; dx <= 0; ++dx) {
+//			int x = chunkX + dx;
+//			for (int dz = -1; dz <= 0; ++dz) {
+//				int z = chunkZ + dz;
+//				
+//				MineraGenesis.logger.logf("    EXAMINE x=%d z=%d: cached %s", x, z, cache.get(x, z));
+//				
+//				switch (cache.get(x, z)) {
+//				case POPULATED_ACCORDING_TO_FLAG:
+//				case POPULATED_ACCORDING_TO_EVENT:
+//					MineraGenesis.logger.logf("    continue");
+//					continue;
+//				case NOT_POPULATED:
+//				case DOES_NOT_EXIST:
+//					MineraGenesis.logger.logf("  NOT FIT");
+//					return false;
+//				case UNKNOWN:
+//					if (provider.chunkExists(x, z)) {
+//						MineraGenesis.logger.logf("    exists according to PROVIDER");
+//					} else if (anvilLoader.chunkExists(world, x, z)) {
+//						MineraGenesis.logger.logf("    exists according to LOADER");
+//					} else {
+//						MineraGenesis.logger.logf("    DOES_NOT_EXIST");
+//						cache.set(x, z, ChunkState.DOES_NOT_EXIST);
+//						MineraGenesis.logger.logf("  NOT FIT");
+//						return false;
+//					}
+//					
+//					if (!provider.provideChunk(x, z).isTerrainPopulated) {
+//						MineraGenesis.logger.logf("    NOT_POPULATED");
+//						cache.set(x, z, ChunkState.NOT_POPULATED);
+//						MineraGenesis.logger.logf("  NOT FIT");
+//						return false;
+//					}
+//
+//					MineraGenesis.logger.logf("    is populated, continue");
+//					cache.set(x, z, ChunkState.POPULATED_ACCORDING_TO_FLAG);
+//				}
+//			}
+//		}
+//		
+//		MineraGenesis.logger.logf("  YES FIT");
+//		
+//		return true;
+//	}
 	
 	@Override
 	public String toString() {
