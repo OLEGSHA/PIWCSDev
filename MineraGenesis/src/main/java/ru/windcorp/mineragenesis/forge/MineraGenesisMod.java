@@ -19,48 +19,37 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
+import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
-import net.minecraft.block.Block;
+import net.minecraft.profiler.Profiler;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.MinecraftForge;
 import ru.windcorp.mineragenesis.MineraGenesis;
-import ru.windcorp.mineragenesis.interfaces.*;
 
 @Mod (
 		modid = MineraGenesis.SAFE_NAME,
 		name = MineraGenesis.DISPLAY_NAME,
 		version = MineraGenesis.VERSION,
 		
+		// Server-only mod
 		acceptableRemoteVersions = "*"
-		)
+)
 
 public class MineraGenesisMod {
 
 	@Mod.EventHandler
 	public void onPreInit(FMLPreInitializationEvent event) {
-		MGAdapterForge adapter = new MGAdapterForge();
+		Object eventHandler = new MineraGenesisForgeEventHandler();
 		
-		MinecraftForge.EVENT_BUS.register(adapter);
-		FMLCommonHandler.instance().bus().register(adapter);
+		MinecraftForge.EVENT_BUS.register(eventHandler);
+		FMLCommonHandler.instance().bus().register(eventHandler);
 		
-		MineraGenesis.setImplementation(
-				MGAdapterForge::buildApplicationRequest,
-				MGAdapterForge::exportChunk,
-				MGAdapterForge::importChunk,
-				new MGHelperForge(event.getModConfigurationDirectory().toPath()),
-				new MGLogger() {
-					@Override
-					public void log(Object msg) {
-						event.getModLog().info("[" + MineraGenesis.DISPLAY_NAME + "] " + msg);
-					}
-					@Override
-					public void debug(String format, Object... args) {
-						if (MineraGenesis.isDebugging) {
-							event.getModLog().info("[" + MineraGenesis.DISPLAY_NAME + "] " + String.format(format, args));
-						}
-					}
-				},
-				name -> Block.getIdFromBlock(Block.getBlockFromName(name)));
+		ForgeImplementation impl = new ForgeImplementation(
+				event.getModLog(),
+				event.getModConfigurationDirectory().toPath()
+		);
+		
+		MineraGenesis.setImplementation(impl);
 	}
 	
 	@Mod.EventHandler
@@ -75,13 +64,17 @@ public class MineraGenesisMod {
 	}
 	
 	@Mod.EventHandler
-	public void onPreWorldLoad(FMLServerAboutToStartEvent event) {
+	public void onPostWorldLoad(FMLServerStartingEvent event) {
 		MineraGenesis.onServerStarted();
 	}
 	
 	@Mod.EventHandler
 	public void onWorldStopping(FMLServerStoppingEvent event) {
 		MineraGenesis.onServerStopping();
+	}
+	
+	public static Profiler getProfiler() {
+		return MinecraftServer.getServer().theProfiler;
 	}
 	
 }

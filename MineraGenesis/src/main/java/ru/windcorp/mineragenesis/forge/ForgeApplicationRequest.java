@@ -18,16 +18,16 @@ import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import ru.windcorp.mineragenesis.request.ApplicationRequest;
 import ru.windcorp.mineragenesis.request.ChunkLocator;
 
-public class ForgeApplicationRequest extends ApplicationRequest {
+class ForgeApplicationRequest extends ApplicationRequest {
 
 	private final ExtendedBlockStorage[] data;
 
-	public ForgeApplicationRequest(ChunkLocator chunk, ExtendedBlockStorage[] data) {
+	ForgeApplicationRequest(ChunkLocator chunk, ExtendedBlockStorage[] data) {
 		super(chunk);
 		this.data = data;
 	}
 
-	public ExtendedBlockStorage[] getData() {
+	ExtendedBlockStorage[] getData() {
 		return data;
 	}
 

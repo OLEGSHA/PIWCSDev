@@ -14,7 +14,6 @@
  */
 package ru.windcorp.mineragenesis;
 
-import cpw.mods.fml.common.FMLCommonHandler;
 import ru.windcorp.mineragenesis.addon.MGAddonManager;
 import ru.windcorp.mineragenesis.interfaces.*;
 import ru.windcorp.mineragenesis.request.GenerationRequest;
@@ -24,13 +23,14 @@ public class MineraGenesis {
 	public static final String DISPLAY_NAME = "MineraGenesis";
 	public static final String SAFE_NAME = "mineragenesis";
 	public static final int API_VERSION = 2;
-	public static final String VERSION = "1.7.10-" + API_VERSION + "-1.4";
+	public static final String VERSION = "1.7.10-" + API_VERSION + "-1.6";
 	
 	private static MGApplicationRequestBuilder applicationRequestBuilder = null;
 	private static MGChunkExporter chunkExporter = null;
 	private static MGChunkImporter chunkImporter = null;
 	private static MGHelper helper = null;
 	private static MGIdTranslator idTranslator = null;
+	private static MGCrasher crasher = null;
 	
 	public static MGLogger logger = null;
 	public static boolean isDebugging = false;
@@ -88,6 +88,7 @@ public class MineraGenesis {
 			MGChunkImporter chunkImporter,
 			MGHelper helper,
 			MGLogger logger,
+			MGCrasher crasher,
 			MGIdTranslator idTranslator
 			) {
 		
@@ -96,12 +97,27 @@ public class MineraGenesis {
 		MineraGenesis.chunkImporter = chunkImporter;
 		MineraGenesis.helper = helper;
 		MineraGenesis.logger = logger;
+		MineraGenesis.crasher = crasher;
 		MineraGenesis.idTranslator = idTranslator;
 		
 		if (isDebugging) {
 			logger.debug("Implementation set by %s", Thread.currentThread().getStackTrace()[2]);
 		}
 	}
+	
+	public static void setImplementation(MGImplementation impl) {
+		MineraGenesis.applicationRequestBuilder = impl;
+		MineraGenesis.chunkExporter = impl;
+		MineraGenesis.chunkImporter = impl;
+		MineraGenesis.helper = impl;
+		MineraGenesis.logger = impl;
+		MineraGenesis.crasher = impl;
+		MineraGenesis.idTranslator = impl;
+		
+		if (isDebugging) {
+			logger.debug("Implementation set by %s", Thread.currentThread().getStackTrace()[2]);
+		}
+	}	
 	
 	public static MGChunkProcessor getProcessor() {
 		return processor;
@@ -134,29 +150,13 @@ public class MineraGenesis {
 			return;
 		}
 		
-		if (MGConfig.isEarlyInitForced()) {
-			logger.log("Beginning early addon initialization: forced by config");
-			MGAddonManager.initializeAddons();
+		if (!MGConfig.isEarlyInitAllowed()) {
+			logger.log("Skipping early addon initialization: no exceptions apply (this is normal)");
 			return;
 		}
 		
-		if (isBukkitPresent()) {
-			logger.log("Skipping early addon initialization: Bukkit detected (\"Early\", faster init can be forced in config)");
-			return;
-		}
-		
-		logger.log("Beginning early addon initialization: no exceptions apply (this is normal)");
+		logger.log("Beginning early addon initialization: allowed by config");
 		MGAddonManager.initializeAddons();
-	}
-	
-	private static boolean isBukkitPresent() {
-		try {
-			Class.forName("org.bukkit.Bukkit", false, null);
-			
-			return true;
-		} catch (ClassNotFoundException e) {
-			return false;
-		}
 	}
 
 	public static void onServerStarted() {
@@ -174,10 +174,14 @@ public class MineraGenesis {
 		MGQueues.stop();
 	}
 
-	public static void crash(Exception exception) {
-		logger.log("A fatal error has occurred, terminating");
-		exception.printStackTrace();
-		FMLCommonHandler.instance().exitJava(719, false);
+	public static void crash(Exception exception, String message, Object... args) {
+		if (message == null) {
+			message = "null";
+		} else if (args != null && args.length != 0) {
+			message = String.format(message, args);
+		}
+		
+		crasher.crash(exception, message);
 	}
 	
 }

@@ -60,7 +60,11 @@ public class GenerationRequest implements Runnable {
 				return;
 			}
 			
-			MineraGenesis.getProcessor().processChunk(this);
+			try {
+				MineraGenesis.getProcessor().processChunk(this);
+			} catch (Exception e) {
+				MineraGenesis.crash(e, "Could not process GenerationRequest " + this);
+			}
 			
 			if (generation != MGQueues.getGeneration()) {
 				// We're stopped
@@ -69,8 +73,13 @@ public class GenerationRequest implements Runnable {
 			
 			MGQueues.queueApplicationRequest(this);
 		} catch (Exception e) {
-			MineraGenesis.crash(e);
+			MineraGenesis.crash(e, "Could not run GenerationRequest " + this);
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "GenerationRequest [requestId=" + requestId + ", generation=" + generation + ", chunk=" + chunk + "]";
 	}
 	
 }

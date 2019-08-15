@@ -33,7 +33,7 @@ public class MGConfig {
 	private static List<String> addonLoadOrder = null;
 	private static Set<String> disabledAddons = null;
 	
-	private static Boolean earlyInitForced = null;
+	private static Boolean earlyInitAllowed = null;
 	
 	private static Integer threads = null;
 	private static Long terminationWaitTimeout = null;
@@ -109,8 +109,8 @@ public class MGConfig {
 				disabledAddons.add(id);
 			}
 			break;
-		case "earlyinitforced":
-			earlyInitForced = Boolean.getBoolean(value.toLowerCase());
+		case "earlyinitallowed":
+			earlyInitAllowed = Boolean.getBoolean(value.toLowerCase());
 			break;
 		case "threads":
 			try {
@@ -129,14 +129,14 @@ public class MGConfig {
 			try {
 				terminationWaitTimeout = (long) (Double.valueOf(value) * 60 * 1000);
 			} catch (NumberFormatException e) {
-				logger.logf("Could not parse value for \"terminationWaitTimeout\": \"%s\" in not an integer. Skipping", value);
+				logger.logf("Could not parse value for \"terminationWaitTimeout\": \"%s\" in not a number. Skipping", value);
 			}
 			break;
 		case "maxqueuelogjunk":
 			try {
 				maxQueueLogJunk = (long) (Double.parseDouble(value) * 1024 * 1024);
 			} catch (NumberFormatException e) {
-				logger.logf("Could not parse value for \"maxqueuelogjunk\": \"%s\" in not an integer. Skipping", value);
+				logger.logf("Could not parse value for \"maxqueuelogjunk\": \"%s\" in not a number. Skipping", value);
 			}
 			break;
 		case "importspertick":
@@ -212,7 +212,7 @@ public class MGConfig {
 	private static void checkCompleteness() {
 		if (addonLoadOrder == null) failCompletenessCheck("addonLoadOrder");
 		if (disabledAddons == null) failCompletenessCheck("disabledAddons");
-		if (earlyInitForced == null) failCompletenessCheck("earlyInitForced");
+		if (earlyInitAllowed == null) failCompletenessCheck("earlyInitAllowed");
 		if (threads == null) failCompletenessCheck("theads");
 		if (terminationWaitTimeout == null) failCompletenessCheck("terminationWaitTimeout");
 		if (maxQueueLogJunk == NOT_SET) failCompletenessCheck("maxQueueLogJunk");
@@ -236,8 +236,8 @@ public class MGConfig {
 		return disabledAddons;
 	}
 	
-	public static boolean isEarlyInitForced() {
-		return earlyInitForced;
+	public static boolean isEarlyInitAllowed() {
+		return earlyInitAllowed;
 	}
 
 	public static int getThreads() {
