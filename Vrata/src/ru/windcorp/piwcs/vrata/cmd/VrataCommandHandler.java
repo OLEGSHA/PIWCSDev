@@ -60,7 +60,7 @@ public class VrataCommandHandler implements CommandExecutor {
 		String helpHeader = get("cmd.helpHeader");
 		
 		CommandSenderFilter isPlayer =
-				sender -> sender instanceof Player ? VrataPermissionException.create("problem.notPlayer", null) : null;
+				sender -> sender instanceof Player ? null : VrataPermissionException.create("problem.notPlayer", null);
 		CommandSenderFilter canModerate =
 				sender -> sender instanceof Player ? VrataPermissionException.checkModerator(getPlayerProfile(sender.getName())) : null;
 		CommandSenderFilter isAdmin =
