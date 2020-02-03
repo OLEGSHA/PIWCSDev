@@ -22,8 +22,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.Version;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
-import ru.windcorp.jputil.cmd.Invocation;
 import ru.windcorp.jputil.cmd.parsers.Parser;
 
 /**
@@ -36,14 +36,14 @@ class VersionParser extends Parser {
 	 * @param id
 	 */
 	public VersionParser(String id) {
-		super(id);
+		super(id, Version.class);
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, AutoInvocation inv) {
 		char[] declar = nextWord(data);
 		if (declar.length == 0) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, String.valueOf(declar) + " is not a valid Version");
@@ -53,7 +53,7 @@ class VersionParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		char[] declar = nextWord(data);
 		if (declar.length == 0) return false;
 		for (char c : declar) {
@@ -68,7 +68,7 @@ class VersionParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		skipWhitespace(data);
 		
 		int index = data.getIndex();
@@ -102,14 +102,6 @@ class VersionParser extends Parser {
 		subversions[nextArrayIndex] = current;
 		
 		output.accept(new Version(subversions));
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(Version.class);
 	}
 
 }

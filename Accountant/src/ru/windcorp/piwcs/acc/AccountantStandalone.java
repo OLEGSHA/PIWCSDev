@@ -30,7 +30,7 @@ import ru.windcorp.piwcs.acc.Agent.AccessLevel;
  * @author Javapony
  *
  */
-public class AccountantSandalone {
+public class AccountantStandalone {
 
 	/**
 	 * @param args

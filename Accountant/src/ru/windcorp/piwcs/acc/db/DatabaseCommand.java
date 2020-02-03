@@ -103,6 +103,8 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 					.parser("<word FIELD> <word VALUE>", null).setRunnerFilter(mustHaveSelection()),
 		
 			new ListFieldsCommand())
+			
+			.setRunnerFilter(mustHaveSelection())
 		);
 	}
 	

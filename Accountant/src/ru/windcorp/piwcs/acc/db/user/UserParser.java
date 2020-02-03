@@ -21,8 +21,8 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
-import ru.windcorp.jputil.cmd.Invocation;
 import ru.windcorp.jputil.cmd.parsers.Parser;
 import ru.windcorp.piwcs.acc.Accountant;
 
@@ -36,14 +36,14 @@ public class UserParser extends Parser {
 	 * @param id
 	 */
 	public UserParser(String id) {
-		super(id);
+		super(id, User.class);
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		String id = new String(nextWord(data));
 		if (id.isEmpty()) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, "No user has ID \"" + id + "\"");
@@ -53,7 +53,7 @@ public class UserParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		return Accountant.getUsers().get(new String(nextWord(data))) != null;
 	}
 
@@ -61,16 +61,7 @@ public class UserParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		output.accept(Accountant.getUsers().get(new String(nextWord(data))));
 	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(User.class);
-	}
-
 }
