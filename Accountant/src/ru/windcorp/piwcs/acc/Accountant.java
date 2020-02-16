@@ -33,6 +33,9 @@ import ru.windcorp.piwcs.acc.db.FieldManager;
 import ru.windcorp.piwcs.acc.db.mods.ModDatabase;
 import ru.windcorp.piwcs.acc.db.mods.ModDatabaseCommand;
 import ru.windcorp.piwcs.acc.db.mods.ModificationParser;
+import ru.windcorp.piwcs.acc.db.settlement.SettlementDatabase;
+import ru.windcorp.piwcs.acc.db.settlement.SettlementDatabaseCommand;
+import ru.windcorp.piwcs.acc.db.settlement.SettlementParser;
 import ru.windcorp.piwcs.acc.db.user.UserDatabase;
 import ru.windcorp.piwcs.acc.db.user.UserDatabaseCommand;
 import ru.windcorp.piwcs.acc.db.user.UserParser;
@@ -41,6 +44,7 @@ public class Accountant {
 
 	private static UserDatabase userDb = null;
 	private static ModDatabase modDb = null;
+	private static SettlementDatabase settlementDb = null;
 	private static Server server = null;
 	private static CommandSystem commandSystem = null;
 	
@@ -80,6 +84,7 @@ public class Accountant {
 		FieldManager.registerStandardTypes();
 		setupUserDatabase();
 		setupModDatabase();
+		setupSettlementDatabase();
 		setupCommandSystem();
 	}
 
@@ -93,13 +98,17 @@ public class Accountant {
 		context.setHelpCommand(new HelpCommand());
 		
 		Parsers.registerCreator("version", VersionParser::new);
+		Parsers.registerCreator("date", LocalDateParser::new);
+		
 		Parsers.registerCreator("mod", ModificationParser::new);
+		Parsers.registerCreator("settlement", SettlementParser::new);
 		Parsers.registerCreator("user", UserParser::new);
 		
 		commandSystem = new CommandSystem(context);
 		commandSystem.addRootCommands(
 				new UserDatabaseCommand(),
 				new ModDatabaseCommand(),
+				new SettlementDatabaseCommand(),
 				new SaveAllCommand()
 		);
 	}
@@ -127,6 +136,18 @@ public class Accountant {
 		modDb.load();
 		log("Modification database loaded %d entries", modDb.size());
 	}
+	
+	/**
+	 * 
+	 * @throws Exception
+	 */
+	private static void setupSettlementDatabase() throws Exception {
+		settlementDb = new SettlementDatabase(root.resolve("settlements"));
+		
+		log("Loading settlement database");
+		settlementDb.load();
+		log("Settlement database loaded %d entries", settlementDb.size());
+	}
 
 	/**
 	 * 
@@ -143,6 +164,9 @@ public class Accountant {
 		runner.respond("Saving modification database");
 		getMods().save(runner);
 		runner.respond("Modification database saved %d modifications", getMods().size());
+		runner.respond("Saving settlement database");
+		getSettlements().save(runner);
+		runner.respond("Settlement database saved %d settlements", getSettlements().size());
 	}
 
 	public static UserDatabase getUsers() {
@@ -151,6 +175,10 @@ public class Accountant {
 	
 	public static ModDatabase getMods() {
 		return modDb;
+	}
+	
+	public static SettlementDatabase getSettlements() {
+		return settlementDb;
 	}
 	
 	/**
@@ -163,7 +191,7 @@ public class Accountant {
 	private static class SaveAllCommand extends Command {
 		
 		public SaveAllCommand() {
-			super(new String[] {"save", "saveall"}, "", "");
+			super(new String[] {"save", "saveall"}, "", "Saves all databases");
 		}
 	
 		/**

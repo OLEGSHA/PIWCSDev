@@ -121,14 +121,22 @@ public class FieldManager {
 	@SuppressWarnings("unchecked")
 	public static <T> FieldLoader<T> getDefaultLoader(String type, Class<T> clazz) {
 		FieldLoader<?> loader = DEFAULT_LOADERS.get(type);
+		
 		if (loader == null && clazz.isEnum()) loader = EnumFieldReadWrite.getForClass(clazz.asSubclass(Enum.class));
+		
+		if (loader == null && FieldValue.class.isAssignableFrom(clazz)) loader = selfLoader();
+		
 		return (FieldLoader<T>) loader;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> FieldWriter<T> getDefaultWriter(String type, Class<T> clazz) {
 		FieldWriter<?> writer = DEFAULT_WRITERS.get(type);
+		
 		if (writer == null && clazz.isEnum()) writer = EnumFieldReadWrite.getForClass(clazz.asSubclass(Enum.class));
+		
+		if (writer == null && FieldValue.class.isAssignableFrom(clazz)) writer = selfWriter();
+		
 		return (FieldWriter<T>) writer;
 	}
 	

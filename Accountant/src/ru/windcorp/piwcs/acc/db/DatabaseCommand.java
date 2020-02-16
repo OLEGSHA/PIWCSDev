@@ -51,8 +51,20 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 	private final Database<T> database;
 	
 	private final Map<CommandRunner, Collection<T>> selections = new WeakHashMap<>();
+	
 	private final Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSelection =
 			runner -> getSelection(runner).isEmpty() ? () -> new Complaint(null, "Nothing selected") : null;
+	private final Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSingularSelection =
+			runner -> {
+				switch (getSelection(runner).size()) {
+				case 0:
+					return () -> new Complaint(null, "Nothing selected");
+				case 1:
+					return null;
+				default:
+					return () -> new Complaint(null, "Only one entry must be selected");
+				}
+			};
 	
 	private final SelectorSystem<T> selectorSystem;
 	private final Object[] displayFields;
@@ -125,8 +137,22 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 		}
 	}
 	
+	public T getSelected(CommandRunner runner) {
+		Collection<T> selection = getSelection(runner);
+		
+		if (selection.size() == 1) {
+			return selection.iterator().next();
+		} else {
+			throw new IllegalStateException("Runner " + runner + " has " + selection.size() + " entries selected, 1 requested");
+		}
+	}
+	
 	public Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSelection() {
 		return mustHaveSelection;
+	}
+	
+	public Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSingularSelection() {
+		return mustHaveSingularSelection;
 	}
 	
 	private class DatabaseIdSelector implements Selector<T> {
@@ -409,7 +435,7 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 			
 			runner.respond(table.toString());
 		} else {
-			runner.respond(templateField.getType() + " " + element.getDatabaseId() + fieldName + " = " + templateField.save());
+			runner.respond(templateField.getType() + " " + element.getDatabaseId() + ":" + fieldName + " = " + templateField.save());
 		}
 	}
 	
@@ -439,7 +465,7 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 				runner.respond("Changed value of field %s to \"%s\" for %d entries", fieldName, value, entries);
 			} else {
 				templateField.load(value);
-				runner.respond(templateField.getType() + " " + element.getDatabaseId() + fieldName + " := " + value);
+				runner.respond(templateField.getType() + " " + element.getDatabaseId() + ":" + fieldName + " := " + value);
 			}
 		} catch (IOException e) {
 			runner.complain("Could not set value: %s", e.toString());

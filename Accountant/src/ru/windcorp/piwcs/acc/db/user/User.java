@@ -23,12 +23,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
-
+import ru.windcorp.piwcs.acc.Accountant;
 import ru.windcorp.piwcs.acc.Agent;
 import ru.windcorp.piwcs.acc.Agent.AccessLevel;
 import ru.windcorp.piwcs.acc.db.DatabaseEntry;
 import ru.windcorp.piwcs.acc.db.Field;
 import ru.windcorp.piwcs.acc.db.FieldManager;
+import ru.windcorp.piwcs.acc.db.settlement.Settlement;
 
 public class User extends DatabaseEntry {
 	
@@ -37,6 +38,8 @@ public class User extends DatabaseEntry {
 	private final Field<String> username =
 			manager.newField(String.class).initial(null).name("username");
 	
+	private final Field<String> nickname =
+			manager.newField(String.class).optionalNull().name("nickname");
 	private final Field<String> realName =
 			manager.newField(String.class).optionalNull().name("real-name");
 	
@@ -47,11 +50,23 @@ public class User extends DatabaseEntry {
 	private final Field<ZonedDateTime> lastSeen =
 			manager.newField(ZonedDateTime.class).optionalNull().name("last-seen");
 	
+	private final Field<String> invitor =
+			manager.newField(String.class).optionalNull().name("invitor");
+	
 	private final Field<AccessLevel> accessLevel =
 			manager.newField(AccessLevel.class)
 			.optional(AccessLevel.PLAYER)
 			.ioReader(Agent.AccessLevel::valueOf, Agent.AccessLevel::name)
 			.name("access-level");
+	
+	private final Field<String> settlement =
+			manager.newField(String.class).optionalNull().name("settlement");
+	
+	private final Field<ContactRecordSet> contacts =
+			manager.newField(ContactRecordSet.class).initial(new ContactRecordSet()).name("contacts");
+	
+	private final Field<String> comment =
+			manager.newField(String.class).optionalNull().name("comments");
 	
 	protected User() {
 		
@@ -100,8 +115,30 @@ public class User extends DatabaseEntry {
 		return this.username.get();
 	}
 	
+	public String getNickname() {
+		return this.nickname.get();
+	}
+	
+	public void setNickname(String nickname) {
+		this.nickname.set("".equals(nickname) ? null : nickname);
+	}
+	
+	public String getDisplayName() {
+		String nickname = getNickname();
+		
+		if (nickname == null) {
+			return getUsername();
+		} else {
+			return nickname;
+		}
+	}
+	
 	public String getRealName() {
 		return this.realName.get();
+	}
+	
+	public void setRealName(String realName) {
+		this.realName.set(realName);
 	}
 	
 	public ZonedDateTime getRegisterDate() {
@@ -130,6 +167,42 @@ public class User extends DatabaseEntry {
 	
 	public void setAccessLevel(AccessLevel lvl) {
 		this.accessLevel.set(lvl);
+	}
+	
+	public String getInvitorUsername() {
+		return this.invitor.get();
+	}
+	
+	public User getInvitor() {
+		return Accountant.getUsers().get(getInvitorUsername());
+	}
+
+	public void setInvitor(User invitor) {
+		this.invitor.set(invitor != null ? invitor.getDatabaseId() : null);
+	}
+	
+	public String getSettlementId() {
+		return this.settlement.get();
+	}
+	
+	public Settlement getSettlement() {
+		return Accountant.getSettlements().get(getSettlementId());
+	}
+
+	public void setSettlement(Settlement settlement) {
+		this.settlement.set(settlement != null ? settlement.getDatabaseId() : null);
+	}
+	
+	public ContactRecordSet getContacts() {
+		return this.contacts.get();
+	}
+	
+	public String getComment() {
+		return this.comment.get();
+	}
+	
+	public void setComment(String comment) {
+		this.comment.set(comment);
 	}
 	
 	/**
