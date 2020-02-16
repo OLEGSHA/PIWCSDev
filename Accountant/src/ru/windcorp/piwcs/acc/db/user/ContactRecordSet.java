@@ -56,7 +56,10 @@ public class ContactRecordSet extends AbstractMap<String, String> implements Fie
 						entrySet().iterator(),
 						e -> ESCAPER.escape(e.getKey()) + ": " + ESCAPER.escape(e.getValue())
 				),
-				", "
+				", ",
+				"",
+				"nullEntry",
+				"nullIterator"
 		);
 	}
 

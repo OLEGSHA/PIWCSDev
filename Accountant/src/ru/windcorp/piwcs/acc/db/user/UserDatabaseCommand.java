@@ -23,6 +23,7 @@ import java.util.Collection;
 import ru.windcorp.jputil.cmd.AutoCommand;
 import ru.windcorp.jputil.cmd.CommandRegistry;
 import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.textui.TUITable;
 import ru.windcorp.piwcs.acc.Accountant;
 import ru.windcorp.piwcs.acc.db.DatabaseCommand;
 import ru.windcorp.piwcs.acc.db.settlement.Settlement;
@@ -176,6 +177,17 @@ public class UserDatabaseCommand extends DatabaseCommand<User> {
 			inv.getRunner().complain("Selected user has no contact record with method \"%s\"", method);
 		}
 		
+	}
+	
+	public void listContacts(Invocation inv) {
+		User selected = getSelected(inv.getRunner());
+		ContactRecordSet contacts = selected.getContacts();
+		
+		inv.getRunner().respond("User %s has %d contact records:", selected, contacts.size());
+		
+		TUITable table = new TUITable("Method", "Data");
+		contacts.forEach(table::addRow);
+		inv.getRunner().respond(table);
 	}
 
 }
