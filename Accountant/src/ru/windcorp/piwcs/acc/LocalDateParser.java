@@ -53,7 +53,7 @@ public class LocalDateParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		if (matchOrReset(data, inv)) return null;
 		
 		String text = new String(nextWord(data));

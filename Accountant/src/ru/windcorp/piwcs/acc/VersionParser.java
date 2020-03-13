@@ -43,7 +43,7 @@ class VersionParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		char[] declar = nextWord(data);
 		if (declar.length == 0) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, String.valueOf(declar) + " is not a valid Version");

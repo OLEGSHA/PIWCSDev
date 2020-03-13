@@ -52,9 +52,9 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 	
 	private final Map<CommandRunner, Collection<T>> selections = new WeakHashMap<>();
 	
-	private final Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSelection =
+	private final Function<CommandRunner, Supplier<CommandExceptions>> mustHaveSelection =
 			runner -> getSelection(runner).isEmpty() ? () -> new Complaint(null, "Nothing selected") : null;
-	private final Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSingularSelection =
+	private final Function<CommandRunner, Supplier<CommandExceptions>> mustHaveSingularSelection =
 			runner -> {
 				switch (getSelection(runner).size()) {
 				case 0:
@@ -147,11 +147,11 @@ public class DatabaseCommand<T extends DatabaseEntry> extends CommandRegistry {
 		}
 	}
 	
-	public Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSelection() {
+	public Function<CommandRunner, Supplier<CommandExceptions>> mustHaveSelection() {
 		return mustHaveSelection;
 	}
 	
-	public Function<CommandRunner, Supplier<? extends CommandExceptions>> mustHaveSingularSelection() {
+	public Function<CommandRunner, Supplier<CommandExceptions>> mustHaveSingularSelection() {
 		return mustHaveSingularSelection;
 	}
 	

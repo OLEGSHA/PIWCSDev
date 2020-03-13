@@ -43,7 +43,7 @@ public class ModificationParser extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		String id = new String(nextWord(data));
 		if (id.isEmpty()) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, "No modification has ID \"" + id + "\"");
