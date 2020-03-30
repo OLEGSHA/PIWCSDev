@@ -48,8 +48,8 @@ public class PBMPlugin extends JavaPlugin {
 		
 		ZonedDateTime dateTime = ZonedDateTime.now().truncatedTo(ChronoUnit.HOURS);
 		
-		int roundedHour = ((dateTime.getHour() - 1) / 4 + 1) * 4;
-		dateTime = dateTime.withHour(roundedHour >= 24 ? 0 : roundedHour);
+		int roundedHour = (dateTime.getHour() / 4 + 1) * 4;
+		dateTime = dateTime.truncatedTo(ChronoUnit.DAYS).plusHours(roundedHour);
 		
 		timer.scheduleAtFixedRate(
 				worker,
