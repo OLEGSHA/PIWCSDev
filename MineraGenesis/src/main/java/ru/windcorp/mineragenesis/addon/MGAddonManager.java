@@ -34,6 +34,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 
+import net.minecraft.util.ReportedException;
 import ru.windcorp.mineragenesis.MGConfig;
 import ru.windcorp.mineragenesis.MineraGenesis;
 
@@ -328,8 +329,13 @@ public class MGAddonManager {
 			addon.loader.run();
 		} catch (Exception e) {
 			logger.logf("Addon %s failed to initialize: %s", addon.metadata.name, e);
-			e.printStackTrace();
-			return;
+			
+			Throwable toReport = e;
+			if (e instanceof InvocationTargetException) toReport = e.getCause();
+			
+			if (toReport instanceof ReportedException) throw (ReportedException) toReport;
+			
+			MineraGenesis.crash(toReport, "Addon %s failed to initialize", addon.metadata.name);
 		}
 		
 		logger.logf("Addon %s initialized successfully", addon.metadata.name);

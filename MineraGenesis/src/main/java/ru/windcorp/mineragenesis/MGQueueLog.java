@@ -21,7 +21,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,7 +56,7 @@ public class MGQueueLog {
 		}
 	}
 	
-	private synchronized static void createStream(OpenOption... options) {
+	private synchronized static void createStream(boolean append) {
 		try {
 			if (output != null) {
 				output.close();
@@ -68,8 +67,8 @@ public class MGQueueLog {
 		
 		try {
 			// Stream is not buffered to make sure data is written ASAP
-			output = new DataOutputStream(Files.newOutputStream(path, options));
-			output.write(HEADER);
+			output = new DataOutputStream(Files.newOutputStream(path, append ? APPEND : CREATE));
+			if (!append) output.write(HEADER);
 		} catch (IOException e) {
 			crash(e, "Could not create queue log (path %s)", path);
 		}
@@ -77,7 +76,7 @@ public class MGQueueLog {
 	
 	private static void setupNewLog() {
 		MineraGenesis.logger.debug("Queue log file not present");
-		createStream(CREATE);
+		createStream(false);
 	}
 
 	private static void readExistingLog() {
@@ -103,7 +102,7 @@ public class MGQueueLog {
 				MineraGenesis.logger.debug("Queue log file contains %d junk entries. Compacting", junk);
 				compact(); // compact will create a stream
 			} else {
-				createStream(APPEND);
+				createStream(true);
 			}
 			
 			if (!pending.isEmpty()) {
@@ -119,9 +118,9 @@ public class MGQueueLog {
 
 	private static void readHeader(DataInputStream input) throws IOException {
 		byte[] buffer = new byte[HEADER.length];
-		input.read(buffer);
+		int read = input.read(buffer);
 		
-		if (!Arrays.equals(buffer, HEADER)) {
+		if (read != HEADER.length || !Arrays.equals(buffer, HEADER)) {
 			throw new IOException(path + " is not a MineraGenesis queue log file. Loading cannot continue. Given header: "
 					+ Arrays.toString(buffer) + ", expected header: " + Arrays.toString(HEADER));
 		}

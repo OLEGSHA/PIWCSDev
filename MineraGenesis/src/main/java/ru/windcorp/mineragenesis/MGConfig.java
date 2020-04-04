@@ -184,12 +184,15 @@ public class MGConfig {
 		
 		for (String str : parts) {
 			try {
+				str = str.trim();
+				if (str.isEmpty()) continue;
+				
 				int id = Integer.parseInt(str);
 				intermediateList.add(id);
 				
 				if (+id >= naturalLength) {
 					naturalLength = +id + 1;
-				} else if (-id < negativeLength) {
+				} else if (-id > negativeLength) {
 					negativeLength = -id;
 				}
 			} catch (NumberFormatException e) {

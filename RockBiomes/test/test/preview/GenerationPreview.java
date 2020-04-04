@@ -32,6 +32,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Scanner;
 
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -122,7 +123,17 @@ public class GenerationPreview {
 	private RenderCanvas canvas;
 
 	public static void main(String[] args) {
-		FakeLoader.load(args[0]);
+		String path;
+		if (args.length == 0) {
+			System.out.println("Configuration directory path:");
+			try (Scanner s = new Scanner(System.in)) {
+				path = s.nextLine();
+			}
+		} else {
+			path = args[0];
+		}
+		
+		FakeLoader.load(path);
 		SwingUtilities.invokeLater(new GenerationPreview()::load);
 	}
 	

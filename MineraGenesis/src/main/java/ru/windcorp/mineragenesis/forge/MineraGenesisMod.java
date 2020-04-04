@@ -17,6 +17,7 @@ package ru.windcorp.mineragenesis.forge;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLModIdMappingEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
@@ -66,11 +67,18 @@ public class MineraGenesisMod {
 	@Mod.EventHandler
 	public void onPostWorldLoad(FMLServerStartingEvent event) {
 		MineraGenesis.onServerStarted();
+		ChunkFinder.load();
+	}
+	
+	@Mod.EventHandler
+	public void onModIdsRemapped(FMLModIdMappingEvent event) {
+//		MineraGenesis.onServerStarted();
 	}
 	
 	@Mod.EventHandler
 	public void onWorldStopping(FMLServerStoppingEvent event) {
 		MineraGenesis.onServerStopping();
+		ChunkFinder.unload();
 	}
 	
 	public static Profiler getProfiler() {

@@ -28,6 +28,7 @@ import ru.windcorp.mineragenesis.rb.config.*;
 import ru.windcorp.mineragenesis.rb.fields.SumField2D;
 import ru.windcorp.mineragenesis.rb.fields.DiscreteFieldConstant;
 import ru.windcorp.mineragenesis.rb.fields.Field2D;
+import ru.windcorp.mineragenesis.rb.fields.Field2DConstant;
 import ru.windcorp.mineragenesis.rb.fields.MaxNoiseDiscreteField2D;
 import ru.windcorp.mineragenesis.rb.fields.NeighboringField2D;
 import ru.windcorp.mineragenesis.rb.fields.Noise2D;
@@ -41,7 +42,7 @@ public class RockBiomesAddon {
 	@MineraGenesisAddonLoader(
 		id = "rb",
 		name = "Rock Biomes",
-		version = "1.3" + (CAN_DEBUG ? "" : "_nodebug"),
+		version = "1.4" + (CAN_DEBUG ? "" : "_nodebug"),
 		minimumMgApiVersion = 1
 	)
 	public static void loadHook() {
@@ -102,6 +103,7 @@ public class RockBiomesAddon {
 				
 				Verb.createBuilder("BlockOnly", BlockOnly.class, BlockOnly::build),
 				Verb.createBuilder("DFOnly", DiscreteFieldConstant.class, DiscreteFieldConstant::build),
+				Verb.createBuilder("Constant2D", Field2DConstant.class, Field2DConstant::build),
 				Verb.createBuilder("BlockSet", BlockSet.class, BlockSet::build),
 				Verb.createBuilder("BlockMix", BlockMix.class, BlockMix::build),
 				new Verb<BlockPredicate>("AnyBlock", BlockPredicate.class) {

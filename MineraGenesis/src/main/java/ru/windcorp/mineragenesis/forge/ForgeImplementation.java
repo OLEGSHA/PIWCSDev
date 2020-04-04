@@ -230,7 +230,7 @@ class ForgeImplementation implements MGImplementation {
 	}
 	
 	@Override
-	public void crash(Exception exception, String message) {
+	public void crash(Throwable exception, String message) {
 		CrashReport report = CrashReport.makeCrashReport(exception, "MineraGenesis has encountered an unrecoverable situation: " + message);
 		throw new ReportedException(report);
 	}

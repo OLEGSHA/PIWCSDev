@@ -10,6 +10,6 @@ package ru.windcorp.mineragenesis.interfaces;
 @FunctionalInterface
 public interface MGCrasher {
 
-	void crash(Exception exception, String message);
+	void crash(Throwable exception, String message);
 	
 }

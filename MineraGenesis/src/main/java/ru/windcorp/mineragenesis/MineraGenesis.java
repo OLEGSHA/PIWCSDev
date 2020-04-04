@@ -23,7 +23,7 @@ public class MineraGenesis {
 	public static final String DISPLAY_NAME = "MineraGenesis";
 	public static final String SAFE_NAME = "mineragenesis";
 	public static final int API_VERSION = 2;
-	public static final String VERSION = "1.7.10-" + API_VERSION + "-1.6";
+	public static final String VERSION = "1.7.10-" + API_VERSION + "-1.7";
 	
 	private static MGApplicationRequestBuilder applicationRequestBuilder = null;
 	private static MGChunkExporter chunkExporter = null;
@@ -174,7 +174,7 @@ public class MineraGenesis {
 		MGQueues.stop();
 	}
 
-	public static void crash(Exception exception, String message, Object... args) {
+	public static void crash(Throwable exception, String message, Object... args) {
 		if (message == null) {
 			message = "null";
 		} else if (args != null && args.length != 0) {

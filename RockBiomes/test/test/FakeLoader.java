@@ -75,7 +75,7 @@ public class FakeLoader {
 		return ":" + meta;
 	}
 	
-	private static void crash(Exception exception, String message) {
+	private static void crash(Throwable exception, String message) {
 		System.err.println(message);
 		exception.printStackTrace();
 		System.exit(1);

@@ -25,7 +25,7 @@ class StackTrace {
 	
 	public static final int MAX_DEPTH = 256;
 	
-	private final String[] elements = new String[256];
+	private final String[] elements = new String[MAX_DEPTH];
 	private int depth = 0;
 	
 	public void push(String element) throws ConfigurationException {
