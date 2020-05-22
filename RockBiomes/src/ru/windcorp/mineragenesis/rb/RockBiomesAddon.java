@@ -33,6 +33,7 @@ import ru.windcorp.mineragenesis.rb.fields.MaxNoiseDiscreteField2D;
 import ru.windcorp.mineragenesis.rb.fields.NeighboringField2D;
 import ru.windcorp.mineragenesis.rb.fields.Noise2D;
 import ru.windcorp.mineragenesis.rb.gen.*;
+import ru.windcorp.mineragenesis.request.ChunkData;
 
 public class RockBiomesAddon {
 
@@ -42,7 +43,7 @@ public class RockBiomesAddon {
 	@MineraGenesisAddonLoader(
 		id = "rb",
 		name = "Rock Biomes",
-		version = "1.4" + (CAN_DEBUG ? "" : "_nodebug"),
+		version = "1.4.3" + (CAN_DEBUG ? "" : "_nodebug"),
 		minimumMgApiVersion = 1
 	)
 	public static void loadHook() {
@@ -87,6 +88,7 @@ public class RockBiomesAddon {
 				},
 				
 				Verb.createBuilder(DimensionComplex.class, DimensionComplex::build),
+				Verb.createBuilder(DimensionSimple.class, DimensionSimple::build),
 				Verb.createBuilder(RockBiomeType.class, RockBiomeType::build),
 				Verb.createBuilder(RockBiome.class, RockBiome::build),
 				
@@ -110,6 +112,12 @@ public class RockBiomesAddon {
 					@Override
 					protected BlockPredicate runImpl(Arguments args) throws ConfigurationException {
 						return mgid -> true;
+					}
+				},
+				new Verb<BlockPredicate>("AnyBlockExceptAir", BlockPredicate.class) {
+					@Override
+					protected BlockPredicate runImpl(Arguments args) throws ConfigurationException {
+						return mgid -> mgid != ChunkData.AIR_MGID;
 					}
 				},
 				

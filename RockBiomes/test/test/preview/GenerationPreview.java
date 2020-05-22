@@ -46,6 +46,7 @@ import ru.windcorp.mineragenesis.interfaces.MGChunkProcessor;
 import ru.windcorp.mineragenesis.rb.RockBiomesCP;
 import ru.windcorp.mineragenesis.rb.gen.Dimension;
 import ru.windcorp.mineragenesis.rb.gen.DimensionComplex;
+import ru.windcorp.mineragenesis.rb.gen.DimensionSimple;
 import test.FakeLoader;
 
 /**
@@ -373,10 +374,13 @@ public class GenerationPreview {
 
 	private void createRenderers(Dimension dim, Collection<Renderer> renderers) {
 		if (dim instanceof DimensionComplex) {
-			renderers.add(new RockBiomeRenderer((DimensionComplex) dim));
-			renderers.add(new OreRenderer((DimensionComplex) dim));
+			renderers.add(new RockBiomeRenderer(dim));
+			renderers.add(new OreRenderer(dim));
 			renderers.add(new BedrockRockBiomeRenderer((DimensionComplex) dim));
 			renderers.add(new BedrockOreRenderer((DimensionComplex) dim));
+		} else if (dim instanceof DimensionSimple) {
+			renderers.add(new RockBiomeRenderer(dim));
+			renderers.add(new OreRenderer(dim));
 		}
 	}
 

@@ -18,6 +18,7 @@
 package ru.windcorp.mineragenesis.rb.gen;
 
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 import ru.windcorp.mineragenesis.rb.RockBiomesCP.Workspace;
 import ru.windcorp.mineragenesis.rb.fields.DiscreteField2D;
@@ -234,5 +235,7 @@ public abstract class Dimension {
 	 * @return
 	 */
 	public abstract RockBiome getRegolithBiomeAt(double chunkX, double chunkZ);
+	
+	public abstract void forEachRegolithBiome(Consumer<RockBiome> consumer);
 	
 }

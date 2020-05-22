@@ -117,7 +117,8 @@ public class ConfigReader implements CharacterIterator {
 		return  (c >= '0' && c <= '9') ||
 				(c >= 'a' && c <= 'z') ||
 				(c >= 'A' && c <= 'Z') ||
-				c == '_';
+				c == '_' ||
+				c == '|';
 	}
 
 	public char[] findWord() {

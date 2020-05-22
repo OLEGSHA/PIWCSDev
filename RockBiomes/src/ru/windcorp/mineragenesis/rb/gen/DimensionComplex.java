@@ -28,6 +28,8 @@ import ru.windcorp.mineragenesis.request.GenerationRequest;
 
 import static ru.windcorp.mineragenesis.request.ChunkData.*;
 
+import java.util.function.Consumer;
+
 public class DimensionComplex extends Dimension {
 	
 	private final DiscreteField2D<RockBiomeType> regolith;
@@ -125,6 +127,15 @@ public class DimensionComplex extends Dimension {
 	@Override
 	public RockBiome getRegolithBiomeAt(double chunkX, double chunkZ) {
 		return regolith.get(chunkX, chunkZ).get(chunkX, chunkZ);
+	}
+	
+	@Override
+	public void forEachRegolithBiome(Consumer<RockBiome> consumer) {
+		for (RockBiomeType rbt : getRegolith().getAll()) {
+			for (RockBiome rb : rbt.getAll()) {
+				consumer.accept(rb);
+			}
+		}
 	}
 	
 	/**

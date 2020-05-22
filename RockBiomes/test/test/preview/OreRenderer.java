@@ -22,9 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ru.windcorp.mineragenesis.rb.gen.Deposit;
-import ru.windcorp.mineragenesis.rb.gen.DimensionComplex;
+import ru.windcorp.mineragenesis.rb.gen.Dimension;
 import ru.windcorp.mineragenesis.rb.gen.RockBiome;
-import ru.windcorp.mineragenesis.rb.gen.RockBiomeType;
 
 /**
  * @author Javapony
@@ -37,16 +36,14 @@ public class OreRenderer extends Renderer {
 	/**
 	 * @param dim
 	 */
-	public OreRenderer(DimensionComplex dim) {
+	public OreRenderer(Dimension dim) {
 		super(dim);
 		
-		for (RockBiomeType rbt : dim.getRegolith().getAll()) {
-			for (RockBiome rb : rbt.getAll()) {
-				for (Deposit dep : rb.getDeposits()) {
-					colors.put(dep, -1);
-				}
+		dim.forEachRegolithBiome(rb -> { 
+			for (Deposit dep : rb.getDeposits()) {
+				colors.put(dep, -1);
 			}
-		}
+		});
 		
 		float step = 1.0f / colors.size();
 		float hue = 0;

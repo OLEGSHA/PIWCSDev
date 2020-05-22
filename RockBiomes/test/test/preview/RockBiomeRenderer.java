@@ -21,9 +21,8 @@ import java.awt.Color;
 import java.util.HashMap;
 import java.util.Map;
 
-import ru.windcorp.mineragenesis.rb.gen.DimensionComplex;
+import ru.windcorp.mineragenesis.rb.gen.Dimension;
 import ru.windcorp.mineragenesis.rb.gen.RockBiome;
-import ru.windcorp.mineragenesis.rb.gen.RockBiomeType;
 
 /**
  * @author Javapony
@@ -36,14 +35,10 @@ public class RockBiomeRenderer extends Renderer {
 	/**
 	 * @param dim
 	 */
-	public RockBiomeRenderer(DimensionComplex dim) {
+	public RockBiomeRenderer(Dimension dim) {
 		super(dim);
 		
-		for (RockBiomeType rbt : dim.getRegolith().getAll()) {
-			for (RockBiome rb : rbt.getAll()) {
-				colors.put(rb, -1);
-			}
-		}
+		dim.forEachRegolithBiome(rb -> colors.put(rb, -1));
 		
 		float step = 1.0f / colors.size();
 		float hue = 0;
