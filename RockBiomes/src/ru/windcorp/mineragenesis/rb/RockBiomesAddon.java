@@ -108,16 +108,17 @@ public class RockBiomesAddon {
 				Verb.createBuilder("Constant2D", Field2DConstant.class, Field2DConstant::build),
 				Verb.createBuilder("BlockSet", BlockSet.class, BlockSet::build),
 				Verb.createBuilder("BlockMix", BlockMix.class, BlockMix::build),
+				
 				new Verb<BlockPredicate>("AnyBlock", BlockPredicate.class) {
 					@Override
 					protected BlockPredicate runImpl(Arguments args) throws ConfigurationException {
-						return mgid -> true;
+						return mgid -> mgid != ChunkData.BEDROCK_MGID;
 					}
 				},
 				new Verb<BlockPredicate>("AnyBlockExceptAir", BlockPredicate.class) {
 					@Override
 					protected BlockPredicate runImpl(Arguments args) throws ConfigurationException {
-						return mgid -> mgid != ChunkData.AIR_MGID;
+						return mgid -> mgid != ChunkData.AIR_MGID && mgid != ChunkData.BEDROCK_MGID;
 					}
 				},
 				

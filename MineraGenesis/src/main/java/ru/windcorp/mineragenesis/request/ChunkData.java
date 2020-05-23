@@ -17,7 +17,8 @@ package ru.windcorp.mineragenesis.request;
 public class ChunkData {
 	
 	public static final int CHUNK_SIZE = 16, CHUNK_HEIGHT = 256;
-	public static final short AIR_MGID = 0;
+	public static final short AIR_MGID =     getMGID(0, 0);
+	public static final short BEDROCK_MGID = getMGID(7, 0);
 	public static final int METADATA_SIZE = 4;
 	
 	// This array is "big", using shorts to save RAM (also reason for short MGIDs)
