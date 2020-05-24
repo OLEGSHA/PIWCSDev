@@ -40,7 +40,7 @@ public class MineraGenesis {
 		@Override
 		public void processChunk(GenerationRequest request) {
 			if (flag.compareAndSet(false, true)) {
-				logger.log("!!!    MineraGenesis  Warning   !!!");
+				logger.log("!!!    MineraGenesis  warning   !!!");
 				logger.log("!!! No MGChunkProcessor present !!!");
 			}
 		}

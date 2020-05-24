@@ -51,6 +51,8 @@ public class MineraGenesisMod {
 		);
 		
 		MineraGenesis.setImplementation(impl);
+
+		MineraGenesis.loadConfig();
 	}
 	
 	@Mod.EventHandler
@@ -60,7 +62,6 @@ public class MineraGenesisMod {
 	
 	@Mod.EventHandler
 	public void onPostInit(FMLPostInitializationEvent event) {
-		MineraGenesis.loadConfig();
 		MineraGenesis.attemptEarlyAddonInit();
 	}
 	

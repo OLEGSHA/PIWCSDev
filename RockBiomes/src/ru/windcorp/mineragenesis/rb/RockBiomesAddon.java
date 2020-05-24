@@ -43,7 +43,7 @@ public class RockBiomesAddon {
 	@MineraGenesisAddonLoader(
 		id = "rb",
 		name = "Rock Biomes",
-		version = "1.4.3" + (CAN_DEBUG ? "" : "_nodebug"),
+		version = "1.4.4" + (CAN_DEBUG ? "" : "_nodebug"),
 		minimumMgApiVersion = 1
 	)
 	public static void loadHook() {

@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
-import net.minecraftforge.event.terraingen.PopulateChunkEvent;
 import ru.windcorp.mineragenesis.MGConfig;
 import ru.windcorp.mineragenesis.MGQueues;
 import ru.windcorp.mineragenesis.MineraGenesis;
@@ -126,27 +125,28 @@ class ChunkFinder {
 		return MineraGenesis.getHelper().getWorldDataDirectory().resolve("populated-chunks");
 	}
 
-	public static void onChunkFinishedPopulating(PopulateChunkEvent.Post event) {
-		if (!MGConfig.isDimensionHandled(event.world.provider.dimensionId)) {
+	public static void onChunkFinishedPopulating(World world, int chunkX, int chunkZ) {
+		if (!MGConfig.isDimensionHandled(world.provider.dimensionId)) {
+			MineraGenesis.logger.debug("Skipping request for dimension ID %d: not enabled", world.provider.dimensionId);
 			return;
 		}
 		
-		SynchronizedChunkSet chunkData = POPULATED_CHUNKS.computeIfAbsent(event.world, world -> new SynchronizedChunkSet());
-		chunkData.add(event.chunkX, event.chunkZ);
+		SynchronizedChunkSet chunkData = POPULATED_CHUNKS.computeIfAbsent(world, w -> new SynchronizedChunkSet());
+		chunkData.add(chunkX, chunkZ);
 		
-		event.world.theProfiler.startSection("mineragenesis-findingChunks");
+		world.theProfiler.startSection("mineragenesis-findingChunks");
 		
 		for (int dx = 0; dx <= 1; ++dx) {
-			int x = event.chunkX + dx;
+			int x = chunkX + dx;
 			for (int dz = 0; dz <= 1; ++dz) {
-				int z = event.chunkZ + dz;
+				int z = chunkZ + dz;
 				if (isChunkReady(x, z, chunkData)) {
-					MGQueues.queueImportRequest(event.world.provider.dimensionId, x, z);
+					MGQueues.queueImportRequest(world.provider.dimensionId, x, z);
 				}
 			}
 		}
 
-		event.world.theProfiler.endSection();
+		world.theProfiler.endSection();
 	}
 	
 	/**

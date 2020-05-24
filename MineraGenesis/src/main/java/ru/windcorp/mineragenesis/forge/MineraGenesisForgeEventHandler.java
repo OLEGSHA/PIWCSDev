@@ -36,7 +36,20 @@ public class MineraGenesisForgeEventHandler {
 
 	@SubscribeEvent (priority = EventPriority.LOWEST)
 	public void onChunkFinishedPopulating(PopulateChunkEvent.Post event) {
-		ChunkFinder.onChunkFinishedPopulating(event);
+		ChunkFinder.onChunkFinishedPopulating(
+				event.world,
+				event.chunkX,
+				event.chunkZ
+		);
+	}
+	
+	@SubscribeEvent
+	public void onExternalRequest(MineraGenesisChunkProcessRequest event) {
+		ChunkFinder.onChunkFinishedPopulating(
+				event.world,
+				event.chunkX,
+				event.chunkZ
+		);
 	}
 	
 }
