@@ -17,19 +17,20 @@ package ru.windcorp.mineragenesis.forge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Random;
+
+import gnu.trove.impl.sync.TSynchronizedIntObjectMap;
+import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
 import net.minecraft.world.World;
-import net.minecraftforge.common.DimensionManager;
 import ru.windcorp.mineragenesis.MGConfig;
 import ru.windcorp.mineragenesis.MGQueues;
 import ru.windcorp.mineragenesis.MineraGenesis;
 
 class ChunkFinder {
 
-	private static final Map<World, SynchronizedChunkSet> POPULATED_CHUNKS =
-			Collections.synchronizedMap(new HashMap<>());
+	private static final TIntObjectMap<SynchronizedChunkSet> POPULATED_CHUNKS =
+			new TSynchronizedIntObjectMap<>(new TIntObjectHashMap<>());
 	
 	public static void load() {
 		makeSurePopulatedChunksDirectoryExists();
@@ -61,15 +62,6 @@ class ChunkFinder {
 	}
 	
 	private static void loadOnePath(Path path, int dimension) {
-		World world = DimensionManager.getWorld(dimension);
-		
-		if (world == null) {
-			MineraGenesis.logger.logf("Unable to find dimension with ID %d. Its presence is suggested by populated chunk cache file %s",
-					dimension, path
-			);
-			return;
-		}
-		
 		SynchronizedChunkSet result = new SynchronizedChunkSet();
 		
 		try {
@@ -82,26 +74,49 @@ class ChunkFinder {
 				dimension, result.getSize()
 		);
 		
-		POPULATED_CHUNKS.put(world, result);
+		POPULATED_CHUNKS.put(dimension, result);
 	}
 	
 	public static void unload() {
 		makeSurePopulatedChunksDirectoryExists();
 		
-		POPULATED_CHUNKS.forEach((world, set) -> {
+		POPULATED_CHUNKS.forEachEntry((dimension, set) -> {
 			
 			Path path = getPopulatedChunksDirectory().resolve(
-					"populated-chunks_" + world.provider.dimensionId + ".mgpc"
+					"populated-chunks_" + dimension + ".mgpc"
 			);
 			
 			try {
 				set.save(path);
 			} catch (IOException e) {
-				MineraGenesis.crash(e, "Could not save populated chunk cache for dimension %d into %s",
-						world.provider.dimensionId,
-						path
-				);
+				
+				try {
+					Path backupPath = path.resolveSibling(
+							String.format("%s_%08d_%tF_%tH-%tM-%tS",
+									path.getFileName().toString(),
+									(new Random()).nextInt(1_0000_0000),
+									System.currentTimeMillis()
+							)
+					);
+					
+					set.save(backupPath);
+					
+					MineraGenesis.logger.logf(
+							"Could not save populated chunk cache for dimension %d into %s, saved into %s instead",
+							dimension, path, backupPath
+					);
+				} catch (IOException e1) {
+					
+					e1.addSuppressed(e);
+				
+					MineraGenesis.crash(e1, "Could not save populated chunk cache for dimension %d into %s",
+							dimension, path
+					);
+				
+				}
 			}
+			
+			return true;
 		});
 		
 		POPULATED_CHUNKS.clear();
@@ -131,7 +146,7 @@ class ChunkFinder {
 			return;
 		}
 		
-		SynchronizedChunkSet chunkData = POPULATED_CHUNKS.computeIfAbsent(world, w -> new SynchronizedChunkSet());
+		SynchronizedChunkSet chunkData = getPopulatedChunksFor(world);
 		chunkData.add(chunkX, chunkZ);
 		
 		world.theProfiler.startSection("mineragenesis-findingChunks");
@@ -149,6 +164,22 @@ class ChunkFinder {
 		world.theProfiler.endSection();
 	}
 	
+	/**
+	 * Returns a {@link SynchronizedChunkSet} that describes the provided world. An empty one is created if none existed.
+	 * @param world the world to look up
+	 * @return the requested {@link SynchronizedChunkSet}.
+	 */
+	private static SynchronizedChunkSet getPopulatedChunksFor(World world) {
+		SynchronizedChunkSet result = POPULATED_CHUNKS.get(world.provider.dimensionId);
+		
+		if (result == null) {
+			result = new SynchronizedChunkSet();
+			POPULATED_CHUNKS.put(world.provider.dimensionId, result);
+		}
+		
+		return result;
+	}
+
 	/**
 	 * Determines whether the chunk specified by <code>chunkX</code> and <code>chunkZ</code> is ready to be processed by
 	 * MineraGenesis.
